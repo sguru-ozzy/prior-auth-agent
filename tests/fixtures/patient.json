@@ -1,0 +1,50 @@
+{
+  "record_id": "P001",
+  "patient": {
+    "first_name": "Kilo",
+    "last_name": "Testcase",
+    "date_of_birth": "1965-11-20",
+    "sex": "F",
+    "member_id": "ZZ300011",
+    "state": "OH",
+    "zip_code": "00011"
+  },
+  "coverage": {
+    "plan_name": "Testplan Medicare Advantage",
+    "bin": "990101",
+    "pcn": "QMN02",
+    "group": "GRP-QM02",
+    "benefit": "Part D",
+    "subscriber_employee_id": null
+  },
+  "prescriber": {
+    "npi": "1999999902",
+    "name": "Testcase Prescriber Alder",
+    "fax": "(000) 555-0199"
+  },
+  "pharmacy": "Testcase Pharmacy North",
+  "medication": {
+    "name": "Adalimumab 40 mg/0.4 mL pen",
+    "package": "2 pens"
+  },
+  "clinical": {
+    "diagnosis_icd10": "L40.50",
+    "diagnosis_description": "Psoriatic arthritis",
+    "body_surface_area_percent": 6,
+    "sensitive_areas_affected": true,
+    "new_start": true,
+    "current_therapy_start_date": null,
+    "prior_therapies": [
+      {
+        "name": "Acitretin",
+        "started": "2026-09-05",
+        "stopped_reason": "Not tolerated."
+      }
+    ],
+    "reason_for_change": "Psoriasis worsened despite therapy.",
+    "quantity_per_28_days": 2,
+    "site_of_care": "Clinic",
+    "notes": null
+  },
+  "attestation_name": "Casey Provider"
+}
