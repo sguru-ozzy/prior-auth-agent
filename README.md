@@ -24,30 +24,67 @@ Python is pinned in `.python-version`; uv and the build backend are pinned in `p
 Commit `uv.lock` and use `--locked` so setup fails if dependencies and the lockfile disagree.
 The launcher uses this repository's `.venv`, including when invoked from another directory.
 
-## Run
+## CLI testing
 
-Supply one patient JSON object. The supplied Portal A sample file is an array of five records, so it cannot be
-passed directly. This example uses the test fixture copied from the first supplied synthetic record and assumes
-the Portal A checkout is a sibling directory:
+Run these commands from the repository after setup. No running portal or API key is needed for PR 2.
+The credentials path assumes the supplied Portal A checkout is a sibling directory. Pass one patient JSON
+object; the supplied sample file contains five records and cannot be passed directly.
+
+### Valid record
+
+This fixture is copied from the first supplied synthetic record:
 
 ```bash
 ./run_agent \
   --portal-url http://127.0.0.1:9463/dashboard \
   --patient tests/fixtures/patient.json \
   --credentials ../portal-a/examples/credentials.json \
-  --out artifacts/result.json
+  --out artifacts/valid.json \
+  --as-of 2026-10-25
+
+cat artifacts/valid.json
+cat artifacts/valid.actions.jsonl
 ```
 
-The result contains `status`, `reason`, `confirmation_id`, `fields_filled` and
-`escalation: {field, problem, suggested_action}`. Preflight fills no portal fields and produces no confirmation ID.
+Expected: `status: ESCALATED`, `escalation.field: portal.workflow`, empty `confirmation_id` and `fields_filled`.
+The record passes local validation; browser execution is the remaining milestone.
 
-- Exit **0** means the result file was written. Inspect its `status` to determine the outcome.
-- Exit **2** means CLI usage is invalid or safe result writing was impossible. Input files are preserved.
-- The adjacent `artifacts/result.actions.jsonl` contains ordered, redacted events. Existing artifacts at those
-  paths are replaced on rerun; choose a separate output path when retaining run history.
+### Invalid record
 
-No API key or running portal is needed for preflight. Browser installation and model access follow in the
-browser workflow milestone.
+Create an intentionally invalid copy; the supplied fixture stays unchanged:
+
+```bash
+.venv/bin/python - <<'PYTHON'
+import json
+from pathlib import Path
+
+record = json.loads(Path("tests/fixtures/patient.json").read_text(encoding="utf-8"))
+record["patient"]["member_id"] = "INVALID"
+Path("local").mkdir(exist_ok=True)
+Path("local/invalid-patient.json").write_text(json.dumps(record), encoding="utf-8")
+PYTHON
+
+./run_agent \
+  --portal-url http://127.0.0.1:9463/dashboard \
+  --patient local/invalid-patient.json \
+  --credentials ../portal-a/examples/credentials.json \
+  --out artifacts/invalid.json \
+  --as-of 2026-10-25
+
+cat artifacts/invalid.json
+cat artifacts/invalid.actions.jsonl
+```
+
+Expected: `status: ESCALATED`, `escalation.field: patient.member_id`, with the required member ID format
+and an instruction to correct the source record. The log ends with `validation_rejected` and `outcome_selected`;
+credentials and the portal are not accessed.
+
+Both examples exit **0** because a result was written. Inspect the JSON `status` rather than treating exit 0
+as a successful submission. Invalid CLI usage or unsafe/unavailable output storage exits **2**.
+
+Each written result includes `status`, `reason`, `confirmation_id`, `fields_filled` and
+`escalation: {field, problem, suggested_action}`. The adjacent `<name>.actions.jsonl` records ordered events.
+Rerunning with the same output path replaces its artifacts; use separate paths to retain history.
 
 ## Validation and configuration
 
@@ -76,6 +113,14 @@ uv run --no-sync ruff format --check .
 uv run --no-sync pytest
 uv build --no-sources
 ```
+
+Run just the five-repeat preflight comparison:
+
+```bash
+uv run --no-sync pytest tests/test_runner.py::test_complete_logs_and_results_repeat_identically
+```
+
+Expected: `1 passed`. The test compares complete result and action-log bytes across five runs with a fixed reference date.
 
 Tests cover validation boundaries, unchanged facts, strict JSON, precise handoffs, redaction, protected input paths,
 storage failures and five identical preflight repeats. In-process tests forbid network connections.
