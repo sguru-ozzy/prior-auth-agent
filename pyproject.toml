@@ -1,0 +1,44 @@
+[project]
+name = "prior-auth-agent"
+version = "0.1.0"
+description = "A browser agent for prior authorization workflows with validated inputs and human escalation."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+    "filelock==4.2.4",
+    "openai==3.37.0",
+    "playwright==1.64.1",
+    "pydantic==2.14.1",
+]
+
+[project.scripts]
+prior-auth-agent = "prior_auth_agent.cli:main"
+
+[build-system]
+requires = ["uv_build==0.13.5"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.17.2",
+]
+
+[tool.uv]
+required-version = "==0.13.5"
+
+[tool.uv.build-backend]
+source-include = ["run_agent", "tests/**", ".python-version", "uv.lock"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --import-mode=importlib"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

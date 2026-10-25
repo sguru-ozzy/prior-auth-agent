@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Agent inputs, secrets and run artifacts
+.env.*
+!.env.example
+/local/
+/artifacts/
+/.state/
+credentials*.json
+.DS_Store
