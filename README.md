@@ -3,9 +3,12 @@
 A browser agent for the Lamar Health prior authorization exercise. It uses supplied patient facts,
 checks for existing requests, and either reports a verified submission or hands the case to a human.
 
-**Verified:** 307 isolated tests and five fresh successful Portal A workflows across the three clean records.
+**Verified:** 350 isolated tests and five fresh successful Portal A workflows across the three clean records.
 P003's three runs produced identical results and action logs, with independent replay and duplicate checks.
-The semantic browser path is implemented; its full workflow and Portal B coverage remain unverified.
+The semantic browser path completes two independent synthetic UI variants with recorded model responses.
+Live-model checks also verified unfamiliar name and explicit 28-day quantity bindings plus cached replay;
+less explicit cycle wording produced a safe abstention.
+Actual Portal B coverage remains unverified.
 
 [Design and decisions](docs/README.md) · [CLI guide](docs/testing.md) · [Earlier full evaluation](evals/results/README.md)
 
@@ -96,11 +99,16 @@ uv run --env-file .env --no-sync ./run_agent \
 
 Both model-assisted commands above require a configured API key. `--planner model` makes a missing key
 an explicit escalation rather than silently selecting rules. On the semantic path, the LLM chooses among
-code-authorized candidates; single-candidate actions and cached plans need no model call. Code owns values,
-validation, permissions and outcomes.
+code-authorized actions and can propose canonical bindings for supported unfamiliar field wording. Code
+checks the evidence, subject, widget type and units, then reads the supplied value. Ambiguous meanings and
+missing facts escalate. Single-candidate actions, reviewed labels and cached plans may need no model call.
+Code owns validation, permissions and outcomes. “First name” and “Given name” already have reviewed
+mappings; unfamiliar wording such as “Legal forename” in a patient section can invoke a binding proposal.
 
 Without `--planner model`, the reviewed Portal A path uses rules and needs no key. The semantic path uses
-an available exported key automatically; without one, it uses stable candidate selection. A completed case
+an available exported key automatically; without one, it uses stable candidate selection. For the grader's
+four-argument command, make the key available in the process environment; the launcher does not load `.env`
+by itself. A completed case
 can replay its saved outcome before either path calls a model. See the [CLI guide](docs/testing.md) for details.
 
 ## Test and evaluate
@@ -118,7 +126,9 @@ stop the development portal first. It checks portal records independently, repea
 
 The earlier full evaluation met **45 of 51** run expectations; six hard cases still escalated.
 The latest live regression pass covered the clean records using reviewed rules, without live model calls.
-The new full semantic path remains unverified. See the linked reports for scope and limitations.
+The semantic path also completes two synthetic browser variants with changed labels, field order and
+help text; those tests use recorded model responses. The forced semantic path on Portal A still stops at
+unsupported request-ID evidence. See the linked reports for scope and limitations.
 
 ## Design and recovery
 

@@ -17,6 +17,12 @@ limits => {
   nodes.forEach((e, i) => e.setAttribute('data-paa-ref', 'u' + i));
   const heading = e => text(e?.querySelector('legend,h1,h2,h3,h4,[role=heading]'));
   const pageHeading = text([...document.querySelectorAll('h1,[role=heading]')].find(visible));
+  const context = e => {
+    const section = e.closest('fieldset,section,article,[role=region],form');
+    return [section?.getAttribute('aria-label') || heading(section),pageHeading].filter(Boolean).join(' | ');
+  };
+  const help = e => (e.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean)
+    .map(id => document.getElementById(id)).filter(visible).map(text).join(' ');
   const controls = nodes.slice(0, limits.max_controls).map((e, i) => {
     const tag = e.tagName.toLowerCase();
     const kind = (e.getAttribute('type') || tag).toLowerCase();
@@ -24,12 +30,11 @@ limits => {
       ['radio','checkbox'].includes(kind) ? kind : tag === 'a' ? 'link' :
       tag === 'button' || ['button','submit'].includes(kind) ? 'button' : 'textbox');
     const group = e.closest('fieldset,[role=radiogroup],[role=group],[role=listbox]');
-    const section = e.closest('section,article,[role=region],form');
     const form = e.form || e.closest('form');
     return {ref:'u'+i, label:accessible(e), evidence:text(e.closest('[role=option],label,li') || e),
       region_text:(e.closest('fieldset,section,[role=region],form')?.innerText || ''),
       group:group ? accessible(group) || heading(group) : '',
-      context:[section?.getAttribute('aria-label') || heading(section),pageHeading].filter(Boolean).join(' | '),
+      context:context(e),help:help(e),
       role,kind, value:kind === 'password' ? '' : String(e.value || ''),
       checked:!!e.checked || e.getAttribute('aria-checked') === 'true' || e.getAttribute('aria-selected') === 'true' || e.getAttribute('aria-pressed') === 'true',
       invalid:e.getAttribute('aria-invalid') === 'true' || !!(e.willValidate && !e.validity.valid),
@@ -41,30 +46,30 @@ limits => {
       options:tag === 'select' ? [...e.options].map(o => ({label:text(o),value:o.value,disabled:o.disabled})) : []};
   });
   const pairs = [];
-  const add = (label,value) => {if(label && value) pairs.push({label,value});};
+  const add = (label,value,e) => {if(label && value) pairs.push({label,value,context:context(e)});};
   document.querySelectorAll('dt').forEach(e => {if(visible(e) && e.nextElementSibling?.matches('dd'))
-    add(text(e),text(e.nextElementSibling));});
+    add(text(e),text(e.nextElementSibling),e);});
   document.querySelectorAll('tr,[role=row]').forEach(e => {
     const cells = [...e.querySelectorAll(':scope > th,:scope > td,:scope > [role=cell],:scope > [role=rowheader]')];
-    if(visible(e) && cells.length === 2) add(text(cells[0]),text(cells[1]));
+    if(visible(e) && cells.length === 2) add(text(cells[0]),text(cells[1]),e);
   });
   document.querySelectorAll('label,[data-label]').forEach(e => {
     if(!visible(e)) return;
     const field = e.control;
     if(field && !['password','hidden'].includes(field.type)) {
       const value = field.tagName === 'SELECT' ? text(field.selectedOptions[0]) : field.value;
-      if(!['radio','checkbox'].includes(field.type)) add(text(e),String(value || ''));
+      if(!['radio','checkbox'].includes(field.type)) add(text(e),String(value || ''),e);
     } else if(e.nextElementSibling && !e.nextElementSibling.querySelector('input,select,textarea')) {
-      add(text(e),text(e.nextElementSibling));
+      add(text(e),text(e.nextElementSibling),e);
     }
   });
   document.querySelectorAll('p,li,div,span').forEach(e => {
     if(!visible(e) || e.children.length > 2 || e.querySelector('input,select,textarea,button,a')) return;
     const children = [...e.children];
-    if(children.length === 2 && !children.some(c => c.children.length)) add(text(children[0]),text(children[1]));
+    if(children.length === 2 && !children.some(c => c.children.length)) add(text(children[0]),text(children[1]),e);
     if(!e.children.length) {
       const match = text(e).match(/^([^:]{1,100}):\s+(.+)$/);
-      if(match) add(match[1],match[2]);
+      if(match) add(match[1],match[2],e);
     }
   });
   const tables = [...document.querySelectorAll('table,[role=table],[role=grid]')].filter(visible).map(t => {

@@ -182,7 +182,10 @@ class SemanticBrowser:
                         "Review the portal validation message; do not alter source values to make it pass.",
                         action.source or "portal.validation",
                     )
-                if not response.ok:
+                # Native forms commonly use POST/Redirect/GET. A redirect is transport
+                # evidence only; the workflow still verifies the resulting draft/receipt.
+                redirected = response.status in (301, 302, 303) and bool(response.headers.get("location"))
+                if not response.ok and not redirected:
                     raise stop(
                         "write_outcome_uncertain",
                         "The authorized write did not return a successful response.",

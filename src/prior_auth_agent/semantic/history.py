@@ -7,6 +7,7 @@ from typing import NoReturn
 
 from prior_auth_agent.agent.proposals import digest, normalize, stop
 from prior_auth_agent.agent.recovery import History, RecoveryGuard, RequestMatch
+from prior_auth_agent.semantic.bindings import BindingResolver
 from prior_auth_agent.semantic.browser import SemanticBrowser
 from prior_auth_agent.semantic.contracts import SemanticSettings, UIAction, UIControl, UIRow, UISnapshot, matches
 from prior_auth_agent.validation import get_fact
@@ -38,8 +39,10 @@ def unique_control(snapshot: UISnapshot, labels: list[str], *, enabled: bool = T
     return controls[0] if controls else None
 
 
-def detail_value(snapshot: UISnapshot, settings: SemanticSettings, field: str) -> str:
-    values = snapshot.values(settings.detail_labels.get(field, []))
+def detail_value(
+    snapshot: UISnapshot, settings: SemanticSettings, field: str, bindings: BindingResolver | None = None
+) -> str:
+    values = bindings.values(snapshot, field) if bindings else snapshot.values(settings.detail_labels.get(field, []))
     if len(values) != 1:
         history_stop("A required request detail is missing or ambiguous: " + field)
     return values[0]
@@ -81,10 +84,17 @@ def receipt(snapshot: UISnapshot, settings: SemanticSettings) -> str | None:
 
 
 class SemanticHistoryReader:
-    def __init__(self, browser: SemanticBrowser, guard: RecoveryGuard, settings: SemanticSettings) -> None:
+    def __init__(
+        self,
+        browser: SemanticBrowser,
+        guard: RecoveryGuard,
+        settings: SemanticSettings,
+        bindings: BindingResolver | None = None,
+    ) -> None:
         self.ui = browser
         self.guard = guard
         self.settings = settings
+        self.bindings = bindings
         self.seen_ids: set[str] = set()
 
     def _fact(self, field: str) -> str:
@@ -112,19 +122,24 @@ class SemanticHistoryReader:
         history_stop("The history does not prove its total count and page boundaries.")
         raise AssertionError
 
+    def _column(self, label: str, field: str) -> bool:
+        if matches(label, self.settings.history_columns[field]):
+            return True
+        return self.bindings is not None and self.bindings.label_matches(label, "Request history", field)
+
     def _row(self, snapshot: UISnapshot, row: UIRow, headers: list[str]) -> tuple[str, str, str, str]:
         values: dict[str, str] = {}
         if headers:
             if len(headers) != len(row.cells):
                 history_stop("A history row does not match its visible columns.")
-            for field, labels in self.settings.history_columns.items():
-                indices = [index for index, label in enumerate(headers) if matches(label, labels)]
+            for field in self.settings.history_columns:
+                indices = [index for index, label in enumerate(headers) if self._column(label, field)]
                 if len(indices) != 1:
                     history_stop("A history column has an unsupported or ambiguous meaning: " + field)
                 values[field] = row.cells[indices[0]]
         else:
-            for field, labels in self.settings.history_columns.items():
-                candidates = [p.value for p in row.pairs if matches(p.label, labels)]
+            for field in self.settings.history_columns:
+                candidates = [p.value for p in row.pairs if self._column(p.label, field)]
                 if len(set(candidates)) != 1:
                     history_stop("A request card has incomplete labeled details: " + field)
                 values[field] = candidates[0]
@@ -188,14 +203,14 @@ class SemanticHistoryReader:
                 if table.rows
                 and (
                     all(
-                        any(matches(header, labels) for header in table.headers)
-                        for labels in self.settings.history_columns.values()
+                        any(self._column(header, field) for header in table.headers)
+                        for field in self.settings.history_columns
                     )
                     if table.headers
                     else all(
                         all(
-                            any(matches(pair.label, labels) for pair in row.pairs)
-                            for labels in self.settings.history_columns.values()
+                            any(self._column(pair.label, field) for pair in row.pairs)
+                            for field in self.settings.history_columns
                         )
                         for row in table.rows
                     )
@@ -229,7 +244,7 @@ class SemanticHistoryReader:
             if request_id(detail, self.settings) != key:
                 history_stop("The request detail identifier differs from its history row.")
             if not same_value(
-                detail_value(detail, self.settings, "patient.member_id"),
+                detail_value(detail, self.settings, "patient.member_id", self.bindings),
                 self._fact("patient.member_id"),
                 "patient.member_id",
             ):
@@ -237,7 +252,7 @@ class SemanticHistoryReader:
                     history_stop("The saved request belongs to a different patient.")
                 continue
             for field in ("patient.date_of_birth", "medication.name", "medication.package"):
-                if not same_value(detail_value(detail, self.settings, field), self._fact(field), field):
+                if not same_value(detail_value(detail, self.settings, field, self.bindings), self._fact(field), field):
                     history_stop("A matching request has conflicting identity or medication details: " + field)
             actual_status = detail_value(detail, self.settings, "status")
             if normalize(actual_status) != normalize(status):

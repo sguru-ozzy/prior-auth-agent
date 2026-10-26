@@ -13,6 +13,7 @@ from prior_auth_agent.agent.recovery import History, RecoveryGuard
 from prior_auth_agent.browser.session import PortalBrowser
 from prior_auth_agent.contracts import Credentials, RunResult
 from prior_auth_agent.errors import InputProblem
+from prior_auth_agent.semantic.bindings import BindingResolver
 from prior_auth_agent.semantic.browser import SemanticBrowser
 from prior_auth_agent.semantic.contracts import SemanticSettings, UIAction, UIControl, UISnapshot, matches
 from prior_auth_agent.semantic.history import (
@@ -48,7 +49,6 @@ class SemanticWorkflow:
         self.credentials = credentials
         self.log = log
         self.ui = SemanticBrowser(browser, settings, log)
-        self.policy = FieldPolicy(facts, settings, workflow_settings)
         self.planner = SemanticPlanner(
             model,
             browser_settings,
@@ -59,6 +59,8 @@ class SemanticWorkflow:
             log,
             browser.deadline,
         )
+        self.bindings = BindingResolver(self.planner)
+        self.policy = FieldPolicy(facts, settings, workflow_settings, self.bindings)
         self.fields: dict[str, JsonValue] = {}
         self.searched: dict[str, str] = {}
         self.selected: set[str] = set()
@@ -190,7 +192,7 @@ class SemanticWorkflow:
 
     def history(self, *, preserve_page: bool = False) -> History:
         if not preserve_page:
-            history_reader = SemanticHistoryReader(self.ui, self.guard, self.settings)
+            history_reader = SemanticHistoryReader(self.ui, self.guard, self.settings, self.bindings)
             history = history_reader.read()
             self.initial_history_ids = history_reader.seen_ids.copy()
             return history
@@ -210,7 +212,7 @@ class SemanticWorkflow:
             reader = SemanticBrowser(self.browser, self.settings, self.log)
             reader.actions = self.ui.actions
             reader.navigate(self.ui.page.url)
-            return SemanticHistoryReader(reader, self.guard, self.settings).read()
+            return SemanticHistoryReader(reader, self.guard, self.settings, self.bindings).read()
         finally:
             if reader is not None:
                 self.ui.actions = reader.actions
@@ -368,7 +370,7 @@ class SemanticWorkflow:
         else:
             required.append("coverage.plan_name")
         for field in required:
-            values = snapshot.values(self.settings.detail_labels.get(field, []))
+            values = self.bindings.values(snapshot, field)
             if not values:
                 return False
             if len(values) != 1 or not same_value(values[0], self.fact(field), field):
@@ -411,7 +413,7 @@ class SemanticWorkflow:
         for field in self.settings.required_review_fields:
             if field == "prescriber.npi":
                 continue
-            values = snapshot.values(self.settings.detail_labels.get(field, []))
+            values = self.bindings.values(snapshot, field)
             if len(values) != 1 or not same_value(values[0], self.fact(field), field):
                 return False
         return True
@@ -592,6 +594,13 @@ class SemanticWorkflow:
                 self._review(snapshot)
             fill_actions, observed = self.policy.fill_actions(snapshot)
             self.fields.update(copy.deepcopy(observed))
+            # Attest only after saved case and questionnaire proof. Earlier navigation
+            # may discard an unsaved name, and an attestation should follow validation.
+            fill_actions = [
+                action
+                for action in fill_actions
+                if action.source != "attestation_name" or self.case_verified and self.answers_verified
+            ]
             if (
                 self.case_verified
                 and self.answers_verified

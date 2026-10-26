@@ -36,6 +36,26 @@ class FieldRule(StrictModel):
         return self
 
 
+class BindingRule(StrictModel):
+    field: FieldRule
+    description: str
+    subject_patterns: list[str]
+    meaning_patterns: list[str]
+    forbidden_patterns: list[str] = Field(default_factory=list)
+    roles: list[str]
+    kinds: list[str]
+
+    @property
+    def id(self) -> str:
+        return self.field.source + "/" + self.field.format
+
+
+class BindingProposal(StrictModel):
+    observation: str
+    binding_id: str | None
+    evidence: list[str]
+
+
 class SemanticSettings(StrictModel):
     version: str
     run_seconds: int = Field(ge=30, le=600)
@@ -68,6 +88,7 @@ class SemanticSettings(StrictModel):
     reference_patterns: list[str]
     context_subjects: dict[str, list[str]]
     required_review_fields: list[str]
+    binding_rules: list[BindingRule] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def check_rules(self) -> "SemanticSettings":
@@ -113,6 +134,15 @@ class SemanticSettings(StrictModel):
             raise ValueError("History summaries must expose complete pagination bounds.")
         if {normalize(s) for s in self.open_statuses} & {normalize(s) for s in self.closed_statuses}:
             raise ValueError("History status categories overlap.")
+        if len({rule.id for rule in self.binding_rules}) != len(self.binding_rules):
+            raise ValueError("Model binding catalog identifiers must be unique.")
+        for rule in self.binding_rules:
+            if not any(rule.field == field for field in self.fields):
+                raise ValueError("Model bindings must use reviewed source formats.")
+            if not rule.meaning_patterns or not rule.subject_patterns or not rule.roles or not rule.kinds:
+                raise ValueError("Model bindings require meaning, subject and widget checks.")
+            for pattern in rule.subject_patterns + rule.meaning_patterns + rule.forbidden_patterns:
+                re.compile(pattern)
         return self
 
 
@@ -152,6 +182,7 @@ class UIControl(StrictModel):
     evidence: str
     region_text: str
     context: str
+    help: str = ""
     role: str
     kind: str
     value: str
@@ -168,6 +199,7 @@ class UIControl(StrictModel):
 class UIPair(StrictModel):
     label: str
     value: str
+    context: str = ""
 
 
 class UIRow(StrictModel):

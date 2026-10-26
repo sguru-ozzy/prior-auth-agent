@@ -1,5 +1,5 @@
 {
-  "version": "semantic-workflow-v1",
+  "version": "semantic-workflow-v2-bindings",
   "run_seconds": 600,
   "max_actions": 120,
   "max_model_calls": 40,
@@ -757,5 +757,756 @@
     "(?i)please correct the following",
     "(?i)invalid (?:member|patient|prescriber|BIN|PCN|group)",
     "(?i)required (?:answer|field|question).{0,50}(?:missing|unanswered)"
+  ],
+  "binding_rules": [
+    {
+      "field": {
+        "source": "patient.first_name",
+        "labels": [
+          "First name",
+          "Given name",
+          "Patient first name",
+          "Member given name"
+        ],
+        "format": "text"
+      },
+      "description": "Patient given name, exactly as supplied.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|beneficiary)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(forename|(?:first|given)\\s+name)\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(prescriber|provider|clinician|subscriber|policyholder|caregiver|guardian|employee|staff)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't",
+        "(?i)\\b(preferred|nickname|middle|maiden|initials?|alias)\\b"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "patient.last_name",
+        "labels": [
+          "Last name",
+          "Family name",
+          "Surname",
+          "Patient last name",
+          "Member surname"
+        ],
+        "format": "text"
+      },
+      "description": "Patient family name, exactly as supplied.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|beneficiary)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(surname|(?:last|family)\\s+name)\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(prescriber|provider|clinician|subscriber|policyholder|caregiver|guardian|employee|staff)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't",
+        "(?i)\\b(preferred|nickname|middle|maiden|initials?|alias)\\b"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "patient.date_of_birth",
+        "labels": [
+          "Date of birth",
+          "DOB",
+          "Birth date",
+          "Patient date of birth"
+        ],
+        "format": "date"
+      },
+      "description": "Patient date of birth, not another person or a treatment date.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|beneficiary)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(dob|birth(?:\\s+date)?|date\\s+of\\s+birth)\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(prescriber|provider|clinician|subscriber|policyholder|caregiver|guardian|employee|staff)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't",
+        "(?i)\\b(age|year\\s+only|month\\s+only)\\b|DD/MM|YYYY/MM"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number",
+        "date"
+      ]
+    },
+    {
+      "field": {
+        "source": "patient.member_id",
+        "labels": [
+          "Member ID",
+          "Insurance member ID",
+          "Member number",
+          "Subscriber member ID"
+        ],
+        "format": "text"
+      },
+      "description": "Patient insurance member identifier; not subscriber employee ID.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|beneficiary)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\bmember\\b",
+        "(?i)\\b(id|identifier|number)\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(prescriber|provider|clinician|subscriber|policyholder|caregiver|guardian|employee|staff)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "patient.state",
+        "labels": [
+          "State",
+          "Patient state",
+          "State of residence"
+        ],
+        "format": "text"
+      },
+      "description": "Patient state of residence.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|beneficiary)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\bstate\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(prescriber|provider|clinician|subscriber|policyholder|caregiver|guardian|employee|staff)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "patient.zip_code",
+        "labels": [
+          "ZIP code",
+          "Postal code",
+          "ZIP",
+          "Patient ZIP code"
+        ],
+        "format": "text"
+      },
+      "description": "Patient residential ZIP/postal code.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|beneficiary)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(zip|postal)\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(prescriber|provider|clinician|subscriber|policyholder|caregiver|guardian|employee|staff)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "coverage.bin",
+        "labels": [
+          "BIN",
+          "Rx BIN",
+          "Pharmacy BIN"
+        ],
+        "format": "text"
+      },
+      "description": "Pharmacy benefit bank identification number (BIN).",
+      "subject_patterns": [
+        "(?i)\\b(coverage|insurance|pharmacy|benefit|plan|bin)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(bin|bank\\s+identification\\s+number)\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "coverage.pcn",
+        "labels": [
+          "PCN",
+          "Rx PCN",
+          "Processor control number"
+        ],
+        "format": "text"
+      },
+      "description": "Pharmacy processor control number (PCN).",
+      "subject_patterns": [
+        "(?i)\\b(coverage|insurance|pharmacy|benefit|plan|pcn)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(pcn|processor\\s+control\\s+number)\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "coverage.group",
+        "labels": [
+          "Group",
+          "Rx group",
+          "Group number",
+          "Group ID"
+        ],
+        "format": "text"
+      },
+      "description": "Insurance pharmacy benefit group identifier.",
+      "subject_patterns": [
+        "(?i)\\b(coverage|insurance|pharmacy|benefit|plan|rx)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\bgroup\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "coverage.plan_name",
+        "labels": [
+          "Plan name",
+          "Insurance plan",
+          "Payer name"
+        ],
+        "format": "text"
+      },
+      "description": "Name of the insurance plan.",
+      "subject_patterns": [
+        "(?i)\\b(coverage|insurance|plan|payer)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(plan|payer)\\b",
+        "(?i)\\bname\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "prescriber.npi",
+        "labels": [
+          "Prescriber NPI",
+          "NPI of prescribing provider"
+        ],
+        "format": "text"
+      },
+      "description": "National Provider Identifier of the prescribing clinician.",
+      "subject_patterns": [
+        "(?i)\\b(prescriber|prescribing)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(npi|national\\s+provider\\s+identifier)\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(pharmacy|facility|organization)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "prescriber.name",
+        "labels": [
+          "Prescriber name",
+          "Prescribing provider name"
+        ],
+        "format": "text"
+      },
+      "description": "Name of the prescribing clinician; not the attesting staff member.",
+      "subject_patterns": [
+        "(?i)\\b(prescriber|prescribing)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\bname\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(attest|staff|patient|member)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "prescriber.fax",
+        "labels": [
+          "Prescriber fax",
+          "Prescriber fax number"
+        ],
+        "format": "text"
+      },
+      "description": "Fax number of the prescribing clinician.",
+      "subject_patterns": [
+        "(?i)\\b(prescriber|prescribing)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\bfax\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(pharmacy|plan|patient)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "medication.name",
+        "labels": [
+          "Medication name",
+          "Drug name",
+          "Requested medication name"
+        ],
+        "format": "text"
+      },
+      "description": "Requested medication name, not prior therapy.",
+      "subject_patterns": [
+        "(?i)\\b(medication|drug|medicine)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(medication|drug|medicine)\\b",
+        "(?i)\\bname\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(prior|previous|failed)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "medication.package",
+        "labels": [
+          "Package",
+          "Medication package",
+          "Drug package",
+          "Package description"
+        ],
+        "format": "text"
+      },
+      "description": "Exact requested medication package description.",
+      "subject_patterns": [
+        "(?i)\\b(medication|drug|medicine)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\bpackage\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(prior|previous)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "clinical.diagnosis_icd10",
+        "labels": [
+          "Diagnosis code",
+          "ICD-10",
+          "ICD-10 diagnosis code",
+          "Primary diagnosis (ICD-10 code)"
+        ],
+        "format": "text"
+      },
+      "description": "Supplied diagnosis code in ICD-10, not an inferred diagnosis.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|clinical|questionnaire|therapy|diagnosis|treatment)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\bicd[ -]?10\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(description|severity|secondary)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "clinical.body_surface_area_percent",
+        "labels": [
+          "Body surface area (%)",
+          "Body surface area percent",
+          "BSA (%)"
+        ],
+        "format": "text"
+      },
+      "description": "Supplied numerical percentage of body surface area; no severity classification.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|clinical|questionnaire|therapy|diagnosis|treatment)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(bsa|body\\s+surface\\s+area)\\b",
+        "(?i)(%|\\bpercent(?:age)?\\b)"
+      ],
+      "forbidden_patterns": [
+        "(?i)([<>]|\\b(above|below|over|under|greater|less|severity|mild|moderate|severe)\\b)",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't",
+        "(?i)\\b(at\\s+least|at\\s+most|threshold|minimum|maximum)\\b"
+      ],
+      "roles": [
+        "textbox",
+        "spinbutton"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "clinical.quantity_per_28_days",
+        "labels": [
+          "Quantity per 28 days",
+          "Requested quantity per 28 days"
+        ],
+        "format": "text"
+      },
+      "description": "Supplied quantity per exactly 28 days (four weeks), without conversion.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|clinical|questionnaire|therapy|diagnosis|treatment)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(quantity|units)\\b",
+        "(?i)\\b(28[ -]?days?|four[ -]?weeks?|4[ -]?weeks?)\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(month(?:ly)?|30[ -]?days?|daily|dosage|dose|mg|milligrams?)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't",
+        "(?i)\\b(?!(?:28|4)\\b)\\d+\\s*[- ]?\\s*(days?|weeks?)\\b|\\bper\\s+week\\b"
+      ],
+      "roles": [
+        "textbox",
+        "spinbutton"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "number"
+      ]
+    },
+    {
+      "field": {
+        "source": "clinical.new_start",
+        "labels": [
+          "Is this a new start of therapy?",
+          "Is the patient starting this therapy?",
+          "New start of therapy"
+        ],
+        "format": "boolean"
+      },
+      "description": "Explicit source boolean: patient is starting this therapy. Positive polarity only.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|clinical|questionnaire|therapy|diagnosis|treatment)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\b(new\\s+start|(?:starting|beginning|initiating)\\s+(?:this\\s+)?(?:therapy|treatment))\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(not|never|without|previously|already|continuing|no\\s+longer)\\b|n't|\\b\\d+\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "radio",
+        "checkbox",
+        "combobox"
+      ],
+      "kinds": [
+        "radio",
+        "checkbox",
+        "select"
+      ]
+    },
+    {
+      "field": {
+        "source": "clinical.sensitive_areas_affected",
+        "labels": [
+          "Are sensitive areas affected?",
+          "Sensitive areas affected"
+        ],
+        "format": "boolean"
+      },
+      "description": "Explicit source boolean: sensitive body areas are affected, without derived clinical inference.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|clinical|questionnaire|therapy|diagnosis|treatment)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\bsensitive\\s+(?:body\\s+)?areas?\\b",
+        "(?i)\\b(affected|involv(?:ed|ement))\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(not|never|without|only|previously)\\b|n't|\\b\\d+\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "radio",
+        "checkbox",
+        "combobox"
+      ],
+      "kinds": [
+        "radio",
+        "checkbox",
+        "select"
+      ]
+    },
+    {
+      "field": {
+        "source": "clinical.current_therapy_start_date",
+        "labels": [
+          "When did the patient start this medication?",
+          "Current therapy start date"
+        ],
+        "format": "date"
+      },
+      "description": "Supplied start date of current therapy, not a duration calculation.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|clinical|questionnaire|therapy|diagnosis|treatment)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\bcurrent\\b",
+        "(?i)\\b(therapy|treatment)\\b",
+        "(?i)\\b(start|began|begun)\\b",
+        "(?i)\\bdate\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(prior|previous|duration|days|months)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea",
+        "select",
+        "tel",
+        "number",
+        "date"
+      ]
+    },
+    {
+      "field": {
+        "source": "clinical.notes",
+        "labels": [
+          "Anything else the reviewer should know",
+          "Clinical notes"
+        ],
+        "format": "text"
+      },
+      "description": "Supplied clinical notes copied verbatim; no generated summary.",
+      "subject_patterns": [
+        "(?i)\\b(patient|member|clinical|questionnaire|therapy|diagnosis|treatment)\\b"
+      ],
+      "meaning_patterns": [
+        "(?i)\\bnotes\\b"
+      ],
+      "forbidden_patterns": [
+        "(?i)\\b(summarize|summary|justify|recommend|severity)\\b",
+        "(?i)\\b(not|never|without|except|instead)\\b|n't"
+      ],
+      "roles": [
+        "textbox",
+        "combobox"
+      ],
+      "kinds": [
+        "text",
+        "input",
+        "textarea"
+      ]
+    }
   ]
 }

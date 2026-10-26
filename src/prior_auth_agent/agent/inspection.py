@@ -29,8 +29,8 @@ from prior_auth_agent.browser.workflow import RequestWorkflow
 from prior_auth_agent.contracts import Credentials, RunResult
 from prior_auth_agent.errors import InputProblem, Issue
 from prior_auth_agent.semantic.browser import SEMANTIC_OBSERVER
-from prior_auth_agent.semantic.contracts import UIProposal, load_semantic_settings
-from prior_auth_agent.semantic.planner import SEMANTIC_PROMPT
+from prior_auth_agent.semantic.contracts import BindingProposal, UIProposal, load_semantic_settings
+from prior_auth_agent.semantic.planner import BINDING_PROMPT, SEMANTIC_PROMPT
 from prior_auth_agent.semantic.workflow import SemanticWorkflow
 from prior_auth_agent.storage.audit import ActionLog
 
@@ -99,6 +99,8 @@ def inspect_portal(
                 "semantic_prompt": SEMANTIC_PROMPT,
                 "semantic_observer": SEMANTIC_OBSERVER,
                 "semantic_schema": UIProposal.model_json_schema(),
+                "binding_prompt": BINDING_PROMPT,
+                "binding_schema": BindingProposal.model_json_schema(),
             }
         ),
     )

@@ -9,15 +9,23 @@ from pydantic import JsonValue
 from prior_auth_agent.agent.proposals import digest, normalize, stop
 from prior_auth_agent.agent.questions import QuestionRule, WorkflowSettings, source_answer
 from prior_auth_agent.errors import InputProblem
+from prior_auth_agent.semantic.bindings import BindingResolver
 from prior_auth_agent.semantic.contracts import FieldRule, SemanticSettings, UIAction, UIControl, UISnapshot, matches
 from prior_auth_agent.validation import get_fact
 
 
 class FieldPolicy:
-    def __init__(self, facts: dict[str, JsonValue], settings: SemanticSettings, workflow: WorkflowSettings) -> None:
+    def __init__(
+        self,
+        facts: dict[str, JsonValue],
+        settings: SemanticSettings,
+        workflow: WorkflowSettings,
+        resolver: BindingResolver | None = None,
+    ) -> None:
         self.facts = facts
         self.settings = settings
         self.workflow = workflow
+        self.resolver = resolver
 
     def rule(self, control: UIControl) -> FieldRule | None:
         wording = control.group if control.role == "radio" else control.label
@@ -30,7 +38,12 @@ class FieldPolicy:
                 "portal.questions",
             )
         if not rules:
-            return None
+            if self.resolver is None:
+                return None
+            proposed = self.resolver.resolve(control)
+            if proposed is None:
+                return None
+            rules = [proposed]
         rule = rules[0]
         if rule.contexts and not any(normalize(context) in normalize(control.context) for context in rule.contexts):
             raise stop(

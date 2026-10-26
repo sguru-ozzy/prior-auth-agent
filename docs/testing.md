@@ -57,7 +57,9 @@ uv run --env-file .env --no-sync ./run_agent \
 
 The action log should identify `portal_adapter_selected` with `action: semantic`. `--planner model` requires
 a configured key. `semantic_model_requested` records actual semantic model calls; a single authorized action
-or a cached proposal may require no call. `model_requested` records calls during reviewed sign-in if that path is used.
+or a cached proposal may require no call. `semantic_binding_authorized` records a checked model binding;
+`semantic_binding_replayed` records a cached interpretation. The model proposes references, never values.
+`model_requested` records calls during reviewed sign-in if that path is used.
 
 For rule-based semantic selection, omit the environment-loading prefix and `--planner model`, and run with
 `OPENAI_API_KEY` unset. An available exported key otherwise enables semantic model planning automatically.
@@ -66,6 +68,20 @@ This exercises the new execution path on Portal A; it does not establish Portal 
 Use an unused supplied clean record to exercise the browser. A locally completed case replays its saved
 result, and an existing open request escalates. Preserve journals; a new state directory belongs to a
 separately reset test environment, not a retry of an unresolved request.
+
+## Field-binding checks
+
+These checks need neither Portal A nor a key. They use recorded SDK responses and independent synthetic
+screens; two variants complete the full semantic workflow, while unsafe subjects, units and changed DOM
+context stop safely.
+
+```bash
+uv run --no-sync pytest tests/unit/test_semantic_bindings.py tests/integration/test_semantic_binding_workflow.py
+```
+
+Normal Portal A runs retain the reviewed adapter. The model binding fallback runs on the semantic path
+for unfamiliar wording admitted by the configured catalog and evidence checks. Unrecognized clinical
+meanings, navigation, statuses or incomplete request evidence still escalate.
 
 ## Local validation
 
