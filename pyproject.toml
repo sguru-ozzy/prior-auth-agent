@@ -30,7 +30,7 @@ dev = [
 required-version = "==0.13.5"
 
 [tool.uv.build-backend]
-source-include = ["run_agent", "tests/**", ".python-version", "uv.lock"]
+source-include = ["run_agent", "tests/**", ".python-version", ".env.example", "uv.lock"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
