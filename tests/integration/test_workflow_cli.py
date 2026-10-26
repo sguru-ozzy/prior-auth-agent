@@ -267,7 +267,23 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
                 controls += "</div>"
             else:
                 input_type = ' type="number"' if scenario == "alternate-layout" and question["kind"] == "number" else ""
-                controls += "<label>" + text + "<input" + input_type + ' id="' + key + '"></label>'
+                if scenario == "accessible-question-label":
+                    controls += (
+                        '<span id="'
+                        + key
+                        + '-label">'
+                        + text
+                        + '<span aria-hidden="true"> *</span></span>'
+                        + "<input"
+                        + input_type
+                        + ' id="'
+                        + key
+                        + '" aria-labelledby="'
+                        + key
+                        + '-label">'
+                    )
+                else:
+                    controls += "<label>" + text + "<input" + input_type + ' id="' + key + '"></label>'
         return (
             '<h1>REQ-TEST Draft</h1><button role="tab">Questions</button>'
             + controls
@@ -810,6 +826,7 @@ def test_ambiguous_patient_search_never_enters_a_new_patient_or_creates_a_reques
         "history-countdown",
         "known-overlay",
         "alternate-layout",
+        "accessible-question-label",
     ],
 )
 def test_reviewed_variations_complete_without_repeating_writes(

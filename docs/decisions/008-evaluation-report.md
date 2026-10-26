@@ -5,7 +5,8 @@ PR: https://github.com/sguru-ozzy/prior-auth-agent/pull/8
 ## Decision
 
 Add an opt-in evaluation runner with reviewed case expectations, independent public-record checks and exact
-full-workflow repeatability. Keep runtime decisions and portal data unchanged.
+full-workflow repeatability. Preserve source-bound runtime decisions and portal data. Fix the query-echo comparison and accessible-name
+lookup regressions exposed by live clean cases.
 
 ## Why
 

@@ -63,7 +63,10 @@ class RequestWorkflow:
             "input:not([type]),input[type=text],input[type=search],input[type=date],"
             "input[type=number],input[type=email],input[type=tel],textarea"
         )
-        return inputs.and_(scope.get_by_label(name, exact=True))
+        labelled = scope.get_by_label(name, exact=True)
+        for role in ("textbox", "combobox", "spinbutton"):
+            labelled = labelled.or_(scope.get_by_role(role, name=name, exact=True))
+        return inputs.and_(labelled)
 
     def read(self, name: str, params: dict[str, str] | None = None) -> dict[str, JsonValue]:
         url = self.base + self.path(name)

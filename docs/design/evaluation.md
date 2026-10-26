@@ -28,3 +28,9 @@ changing receipts, outcomes or action sequences. Evidence directories are never 
 The first clean smoke evaluation exposed a query-echo regression: Portal A lowercases the echoed search term.
 The adapter now applies that explicit configured comparison only to the query echo, while preserving exact
 source and saved-patient checks. Fixtures reproduce the observed lowercase echo, including stale-query rejection.
+
+The same evaluation found that Portal A's question controls have correct accessible names but different label-text
+content. Field lookup now accepts exact reviewed accessible names through textbox, combobox and spinbutton roles,
+while retaining label support for native date inputs. The final locator still intersects with fillable input
+and textarea elements and requires one target. A browser fixture reproduces aria-labelledby with hidden required
+markers; broad section matches remain excluded.
