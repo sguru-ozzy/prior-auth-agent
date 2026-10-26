@@ -6,8 +6,8 @@ the [testing guide](testing.md) covers additional CLI cases.
 
 ## Implementation designs
 
+- [Evaluation evidence](design/evaluation.md)
 - [Search reliability, interruptions and matching](design/portal-resilience.md)
-
 - [Complete request workflow](design/complete-request.md)
 - [Duplicate protection and recovery](design/duplicate-recovery.md)
 
@@ -20,6 +20,7 @@ the [testing guide](testing.md) covers additional CLI cases.
 - [PR 5: Duplicate protection and recovery](decisions/005-duplicate-protection.md)
 - [PR 6: Complete request workflow](decisions/006-complete-workflow.md)
 - [PR 7: Search reliability and portal resilience](decisions/007-portal-resilience.md)
+- [PR 8: Evaluation and evidence](decisions/008-evaluation-report.md)
 
 Records for PRs 1–3 were written retrospectively from their merged changes and validation evidence.
 They describe those milestones; the source and configuration show current behavior.

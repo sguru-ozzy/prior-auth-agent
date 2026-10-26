@@ -173,3 +173,24 @@ The live read-only throttled run is saved privately as `artifacts/inspect-thrott
 log. It exercised three read retries, then returned `ESCALATED` because another wait would exceed the run budget.
 There were no Create/Send intents. This verifies bounded stopping; it does not prove successful completion under
 sustained throttling. Keep complete-history and evidence-freshness checks when improving this case.
+
+## Assignment evaluation
+
+Stop your development portal before live evaluation; the runner refuses occupied ports. It starts and stops its
+own fresh practice server for each live repetition. Preserve existing recovery journals and use a new output
+folder. The default manifest covers 27 validation cases, three clean records and all 19 documented scenarios.
+
+```bash
+uv run --no-sync python evals/run_suite.py \
+  --records ../portal-a/examples/sample_patients.json \
+  --credentials ../portal-a/examples/credentials.json \
+  --portal-repo ../portal-a \
+  --portal-python ../portal-a/.venv/bin/python \
+  --out-dir artifacts/evaluation
+```
+
+Use repeated `--case <id>` options to select cases from `evals/portal_a.json`. Unselected cases remain listed in
+the report. `clean-p003` repeats the full workflow three times from fresh environments and separately checks
+cached reruns. No API key is needed. Exit 0 means all expectations, independent checks and exact comparisons
+passed; 1 means failures or incomplete evidence; 2 means invalid setup. Review `report.json` and each run's
+private artifacts. Portal logs can include synthetic credentials; keep the artifact directory private.

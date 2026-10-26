@@ -1,0 +1,476 @@
+{
+  "version": "portal-a-evaluation-v1",
+  "reference_date": "2026-10-25",
+  "seed": 42,
+  "oracle": {
+    "sent_statuses": [
+      "Sent to plan",
+      "Questions from plan",
+      "Answers sent",
+      "Under review",
+      "Approved",
+      "Denied",
+      "PA not required"
+    ],
+    "sex_labels": {
+      "F": "Female",
+      "M": "Male",
+      "X": "Unknown"
+    },
+    "receipt_field": "confirmation",
+    "rejected_status": "FAILED"
+  },
+  "cases": [
+    {
+      "id": "invalid-name",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.first_name",
+      "local_only": true,
+      "changes": {
+        "patient.first_name": "Invalid7"
+      }
+    },
+    {
+      "id": "missing-name",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.last_name",
+      "local_only": true,
+      "remove": [
+        "patient.last_name"
+      ]
+    },
+    {
+      "id": "dob-format",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.date_of_birth",
+      "local_only": true,
+      "changes": {
+        "patient.date_of_birth": "19651120"
+      }
+    },
+    {
+      "id": "dob-calendar",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.date_of_birth",
+      "local_only": true,
+      "changes": {
+        "patient.date_of_birth": "2023-02-29"
+      }
+    },
+    {
+      "id": "dob-future",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.date_of_birth",
+      "local_only": true,
+      "changes": {
+        "patient.date_of_birth": "2027-01-01"
+      }
+    },
+    {
+      "id": "dob-age",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.date_of_birth",
+      "local_only": true,
+      "changes": {
+        "patient.date_of_birth": "1905-10-25"
+      }
+    },
+    {
+      "id": "invalid-sex",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.sex",
+      "local_only": true,
+      "changes": {
+        "patient.sex": "U"
+      }
+    },
+    {
+      "id": "invalid-member",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.member_id",
+      "local_only": true,
+      "changes": {
+        "patient.member_id": "INVALID"
+      }
+    },
+    {
+      "id": "invalid-state",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.state",
+      "local_only": true,
+      "changes": {
+        "patient.state": "Ohio"
+      }
+    },
+    {
+      "id": "invalid-zip",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.zip_code",
+      "local_only": true,
+      "changes": {
+        "patient.zip_code": "0011"
+      }
+    },
+    {
+      "id": "missing-bin",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "coverage.bin",
+      "local_only": true,
+      "changes": {
+        "coverage.bin": ""
+      }
+    },
+    {
+      "id": "missing-pcn",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "coverage.pcn",
+      "local_only": true,
+      "changes": {
+        "coverage.pcn": ""
+      }
+    },
+    {
+      "id": "missing-group",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "coverage.group",
+      "local_only": true,
+      "changes": {
+        "coverage.group": ""
+      }
+    },
+    {
+      "id": "invalid-npi",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "prescriber.npi",
+      "local_only": true,
+      "changes": {
+        "prescriber.npi": "123456789"
+      }
+    },
+    {
+      "id": "missing-medication",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "medication.name",
+      "local_only": true,
+      "changes": {
+        "medication.name": ""
+      }
+    },
+    {
+      "id": "missing-package",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "medication.package",
+      "local_only": true,
+      "changes": {
+        "medication.package": ""
+      }
+    },
+    {
+      "id": "invalid-diagnosis",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "clinical.diagnosis_icd10",
+      "local_only": true,
+      "changes": {
+        "clinical.diagnosis_icd10": "not a code"
+      }
+    },
+    {
+      "id": "invalid-bsa",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "clinical.body_surface_area_percent",
+      "local_only": true,
+      "changes": {
+        "clinical.body_surface_area_percent": 101
+      }
+    },
+    {
+      "id": "invalid-quantity",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "clinical.quantity_per_28_days",
+      "local_only": true,
+      "changes": {
+        "clinical.quantity_per_28_days": 13
+      }
+    },
+    {
+      "id": "invalid-boolean",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "clinical.sensitive_areas_affected",
+      "local_only": true,
+      "changes": {
+        "clinical.sensitive_areas_affected": 0
+      }
+    },
+    {
+      "id": "invalid-therapies",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "clinical.prior_therapies",
+      "local_only": true,
+      "changes": {
+        "clinical.prior_therapies": {}
+      }
+    },
+    {
+      "id": "invalid-site",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "clinical.site_of_care",
+      "local_only": true,
+      "changes": {
+        "clinical.site_of_care": "Hospital"
+      }
+    },
+    {
+      "id": "invalid-therapy-date",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "clinical.current_therapy_start_date",
+      "local_only": true,
+      "changes": {
+        "clinical.current_therapy_start_date": "2022-99-99"
+      }
+    },
+    {
+      "id": "missing-attestation",
+      "group": "validation",
+      "record_id": "P001",
+      "expected_status": "ESCALATED",
+      "expected_field": "attestation_name",
+      "local_only": true,
+      "changes": {
+        "attestation_name": ""
+      }
+    },
+    {
+      "id": "required-therapy-date",
+      "group": "validation",
+      "record_id": "P001",
+      "changes": {
+        "clinical.new_start": false,
+        "clinical.current_therapy_start_date": null
+      },
+      "expected_status": "ESCALATED",
+      "expected_field": "clinical.current_therapy_start_date",
+      "local_only": true
+    },
+    {
+      "id": "supplied-invalid-dob",
+      "group": "validation",
+      "record_id": "P004",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.date_of_birth",
+      "local_only": true
+    },
+    {
+      "id": "supplied-invalid-member",
+      "group": "validation",
+      "record_id": "P005",
+      "expected_status": "ESCALATED",
+      "expected_field": "patient.member_id",
+      "local_only": true
+    },
+    {
+      "id": "clean-p001",
+      "group": "clean",
+      "record_id": "P001",
+      "expected_status": "SUCCESS",
+      "repeats": 1,
+      "replay": false
+    },
+    {
+      "id": "clean-p002",
+      "group": "clean",
+      "record_id": "P002",
+      "expected_status": "SUCCESS",
+      "repeats": 1,
+      "replay": false
+    },
+    {
+      "id": "clean-p003",
+      "group": "clean",
+      "record_id": "P003",
+      "expected_status": "SUCCESS",
+      "repeats": 3,
+      "replay": true
+    },
+    {
+      "id": "scenario-happy",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "happy",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-maintenance",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "maintenance",
+      "expected_status": "ESCALATED",
+      "expected_field": "portal.access"
+    },
+    {
+      "id": "scenario-bad-gateway",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "bad_gateway",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-drug-search-ambiguous",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "drug_search_ambiguous",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-forms-empty-fallback",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "forms_empty_fallback",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-sponsored-drug-gate",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "sponsored_drug_gate",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-therapeutic-alternatives",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "therapeutic_alternatives",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-duplicate-request",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "duplicate_request",
+      "expected_status": "ESCALATED",
+      "expected_field": "portal.request"
+    },
+    {
+      "id": "scenario-state-dropdown-sticks",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "state_dropdown_sticks",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-attachment-rejected",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "attachment_rejected",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-merge-timeout",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "merge_timeout",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-plan-asks-more",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "plan_asks_more",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-determination-denied",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "determination_denied",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-status-moves-backward",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "status_moves_backward",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-request-expired",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "request_expired",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-status-bounce",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "status_bounce",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-load-error-once",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "load_error_once",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-throttled",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "throttled",
+      "expected_status": "SUCCESS"
+    },
+    {
+      "id": "scenario-help-badge-covers",
+      "group": "hard",
+      "record_id": "P003",
+      "scenario": "help_badge_covers",
+      "expected_status": "SUCCESS"
+    }
+  ]
+}

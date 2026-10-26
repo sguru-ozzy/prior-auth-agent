@@ -67,6 +67,8 @@ Tests use isolated synthetic fixtures and need neither Portal A nor an API key.
 CI tests a non-editable installed package on Ubuntu. Use `uv sync --locked --no-editable --reinstall-package prior-auth-agent` to reproduce it;
 `uv sync --locked` restores editable development.
 
+For opt-in live case reports and full-workflow repeatability, see [assignment evaluation](docs/testing.md#assignment-evaluation).
+
 ## Design
 
 **LLM proposes → validator checks → workflow authorizes → browser executes and verifies.**
