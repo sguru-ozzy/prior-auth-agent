@@ -59,13 +59,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--planner",
         choices=("reviewed", "model"),
         default="reviewed",
-        help="Reviewed authentication rules or constrained live-model proposals.",
+        help="Force model proposals for sign-in. The semantic adapter also uses an exported API key when available.",
     )
     parser.add_argument(
         "--state-dir", type=Path, help="Private recovery directory; defaults to the user state directory."
     )
     parser.add_argument("--recovery-config", type=Path, help="Complete reviewed duplicate/recovery configuration.")
     parser.add_argument("--workflow-config", type=Path, help="Complete reviewed portal workflow configuration.")
+    parser.add_argument(
+        "--adapter",
+        choices=("auto", "reviewed", "semantic"),
+        default="auto",
+        help="Automatically select the observed Portal A profile or the endpoint-independent semantic workflow.",
+    )
+    parser.add_argument("--semantic-config", type=Path, help="Reviewed semantic field, navigation and evidence rules.")
     parser.add_argument(
         "--resume-request",
         metavar="REQUEST_ID",
@@ -85,6 +92,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         or arguments.state_dir
         or arguments.recovery_config
         or arguments.workflow_config
+        or arguments.semantic_config
+        or arguments.adapter != "auto"
     ):
         parser.error("Browser options cannot be used with --validate-only.")
     return run(
@@ -103,4 +112,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         not (arguments.inspect_portal or arguments.validate_only),
         arguments.workflow_config,
         arguments.resume_request,
+        arguments.adapter,
+        arguments.semantic_config,
     )

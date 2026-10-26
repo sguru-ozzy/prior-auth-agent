@@ -1,0 +1,761 @@
+{
+  "version": "semantic-workflow-v1",
+  "run_seconds": 600,
+  "max_actions": 120,
+  "max_model_calls": 40,
+  "settle_ms": 250,
+  "max_unchanged": 3,
+  "max_controls": 400,
+  "max_text_length": 60000,
+  "max_history_pages": 20,
+  "max_history_rows": 500,
+  "intents": {
+    "username": [
+      "Username",
+      "User name",
+      "Email",
+      "Email address",
+      "Login ID"
+    ],
+    "password": [
+      "Password",
+      "Account password"
+    ],
+    "login": [
+      "Sign in",
+      "Log in",
+      "Login",
+      "Continue",
+      "Next"
+    ],
+    "history": [
+      "Requests",
+      "Request history",
+      "Authorization requests",
+      "Prior authorizations",
+      "My requests"
+    ],
+    "clear_filters": [
+      "Clear filters",
+      "Reset filters",
+      "Show all requests",
+      "Clear all filters"
+    ],
+    "next_page": [
+      "Next",
+      "Next page",
+      "Older requests"
+    ],
+    "new_request": [
+      "New request",
+      "Start request",
+      "New authorization",
+      "Create prior authorization",
+      "Start prior authorization"
+    ],
+    "new_patient": [
+      "New patient",
+      "Enter new patient",
+      "Add patient",
+      "Enter patient manually"
+    ],
+    "patient_search": [
+      "Search patients",
+      "Find patient",
+      "Find a patient",
+      "Patient search",
+      "Search by member ID"
+    ],
+    "medication_search": [
+      "Medication",
+      "Drug",
+      "Requested medication",
+      "Search medications",
+      "Find medication",
+      "Drug search"
+    ],
+    "find_forms": [
+      "Find forms",
+      "Find plan forms",
+      "Search forms",
+      "Find authorization form",
+      "Search plans"
+    ],
+    "create": [
+      "Create request",
+      "Create authorization request",
+      "Create draft",
+      "Create authorization"
+    ],
+    "questions": [
+      "Questions",
+      "Plan questions",
+      "Clinical questions",
+      "Questionnaire"
+    ],
+    "review": [
+      "Summary",
+      "Review",
+      "Review request",
+      "Request details",
+      "Overview"
+    ],
+    "advance": [
+      "Next",
+      "Continue",
+      "Save and continue",
+      "Continue to questions",
+      "Continue to review"
+    ],
+    "save": [
+      "Save",
+      "Save answers",
+      "Save responses",
+      "Save and continue"
+    ],
+    "send": [
+      "Send to plan",
+      "Fax to plan",
+      "Submit request",
+      "Submit authorization",
+      "Send request",
+      "Submit to plan",
+      "Submit"
+    ],
+    "dismiss": [
+      "Reject non-essential",
+      "Close help",
+      "Dismiss help"
+    ],
+    "form_choices": [
+      "Forms",
+      "Plan forms",
+      "Available forms",
+      "Choose a plan form",
+      "Plan form",
+      "Authorization form",
+      "Selected form"
+    ],
+    "view_request": [
+      "View",
+      "View details",
+      "View request",
+      "Open request",
+      "Open"
+    ]
+  },
+  "fields": [
+    {
+      "source": "patient.first_name",
+      "labels": [
+        "First name",
+        "Given name",
+        "Patient first name",
+        "Member given name"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "patient.last_name",
+      "labels": [
+        "Last name",
+        "Family name",
+        "Surname",
+        "Patient last name",
+        "Member surname"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "patient.date_of_birth",
+      "labels": [
+        "Date of birth",
+        "DOB",
+        "Birth date",
+        "Patient date of birth"
+      ],
+      "format": "date"
+    },
+    {
+      "source": "patient.sex",
+      "labels": [
+        "Sex",
+        "Gender",
+        "Patient sex"
+      ],
+      "format": "sex"
+    },
+    {
+      "source": "patient.member_id",
+      "labels": [
+        "Member ID",
+        "Insurance member ID",
+        "Member number",
+        "Subscriber member ID"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "patient.state",
+      "labels": [
+        "State",
+        "Patient state",
+        "State of residence"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "patient.zip_code",
+      "labels": [
+        "ZIP code",
+        "Postal code",
+        "ZIP",
+        "Patient ZIP code"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "coverage.bin",
+      "labels": [
+        "BIN",
+        "Rx BIN",
+        "Pharmacy BIN"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "coverage.pcn",
+      "labels": [
+        "PCN",
+        "Rx PCN",
+        "Processor control number"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "coverage.group",
+      "labels": [
+        "Group",
+        "Rx group",
+        "Group number",
+        "Group ID"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "coverage.plan_name",
+      "labels": [
+        "Plan name",
+        "Insurance plan",
+        "Payer name"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "coverage.benefit",
+      "labels": [
+        "Benefit",
+        "Benefit type",
+        "Which benefit covers this request?"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "coverage.subscriber_employee_id",
+      "labels": [
+        "Subscriber/employee ID",
+        "Employee ID",
+        "Subscriber employee ID",
+        "Subscriber / employee ID",
+        "Subscriber or employee ID",
+        "State employee ID of the subscriber"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "prescriber.npi",
+      "labels": [
+        "Prescriber NPI",
+        "NPI of prescribing provider"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "prescriber.name",
+      "labels": [
+        "Prescriber name",
+        "Prescribing provider name"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "prescriber.fax",
+      "labels": [
+        "Prescriber fax",
+        "Prescriber fax number"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "medication.name",
+      "labels": [
+        "Medication name",
+        "Drug name",
+        "Requested medication name"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "medication.package",
+      "labels": [
+        "Package",
+        "Medication package",
+        "Drug package",
+        "Package description"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "clinical.diagnosis_icd10",
+      "labels": [
+        "Diagnosis code",
+        "ICD-10",
+        "ICD-10 diagnosis code",
+        "Primary diagnosis (ICD-10 code)"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "clinical.diagnosis_description",
+      "labels": [
+        "Diagnosis description"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "clinical.body_surface_area_percent",
+      "labels": [
+        "Body surface area (%)",
+        "Body surface area percent",
+        "BSA (%)"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "clinical.sensitive_areas_affected",
+      "labels": [
+        "Are sensitive areas affected?",
+        "Sensitive areas affected"
+      ],
+      "format": "boolean"
+    },
+    {
+      "source": "clinical.new_start",
+      "labels": [
+        "Is this a new start of therapy?",
+        "Is the patient starting this therapy?",
+        "New start of therapy"
+      ],
+      "format": "boolean"
+    },
+    {
+      "source": "clinical.current_therapy_start_date",
+      "labels": [
+        "When did the patient start this medication?",
+        "Current therapy start date"
+      ],
+      "format": "date"
+    },
+    {
+      "source": "clinical.reason_for_change",
+      "labels": [
+        "Reason for change",
+        "Reason for changing therapy"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "clinical.quantity_per_28_days",
+      "labels": [
+        "Quantity per 28 days",
+        "Requested quantity per 28 days"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "clinical.site_of_care",
+      "labels": [
+        "Where will the patient receive this medication?",
+        "Site of care"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "clinical.notes",
+      "labels": [
+        "Anything else the reviewer should know",
+        "Clinical notes"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "pharmacy",
+      "labels": [
+        "Pharmacy",
+        "Dispensing pharmacy"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "attestation_name",
+      "labels": [
+        "Your full name",
+        "Attestation name",
+        "Full name of person submitting",
+        "Attesting staff full name"
+      ],
+      "format": "text"
+    },
+    {
+      "source": "clinical.prior_therapies",
+      "labels": [
+        "Has the patient tried a conventional systemic therapy?"
+      ],
+      "format": "therapy_test"
+    },
+    {
+      "source": "clinical.prior_therapies",
+      "labels": [
+        "Which therapy, when did it start, and why was it stopped?"
+      ],
+      "format": "therapy_detail"
+    }
+  ],
+  "search_fields": {
+    "patient.member_id": [
+      "Search patients",
+      "Find patient",
+      "Find a patient",
+      "Patient search",
+      "Search by member ID"
+    ],
+    "medication.name": [
+      "Medication",
+      "Drug",
+      "Requested medication",
+      "Search medications",
+      "Find medication",
+      "Drug search"
+    ]
+  },
+  "history_columns": {
+    "request_id": [
+      "Key",
+      "Request ID",
+      "Request number",
+      "Authorization ID",
+      "Reference"
+    ],
+    "medication.name": [
+      "Drug",
+      "Medication",
+      "Requested medication"
+    ],
+    "status": [
+      "Status",
+      "Request status",
+      "State"
+    ]
+  },
+  "detail_labels": {
+    "patient.first_name": [
+      "First name",
+      "Given name",
+      "Patient first name",
+      "Member given name"
+    ],
+    "patient.last_name": [
+      "Last name",
+      "Family name",
+      "Surname",
+      "Patient last name",
+      "Member surname"
+    ],
+    "patient.date_of_birth": [
+      "Date of birth",
+      "DOB",
+      "Birth date",
+      "Patient date of birth"
+    ],
+    "patient.sex": [
+      "Sex",
+      "Gender",
+      "Patient sex"
+    ],
+    "patient.member_id": [
+      "Member ID",
+      "Insurance member ID",
+      "Member number",
+      "Subscriber member ID"
+    ],
+    "patient.state": [
+      "State",
+      "Patient state",
+      "State of residence"
+    ],
+    "patient.zip_code": [
+      "ZIP code",
+      "Postal code",
+      "ZIP",
+      "Patient ZIP code"
+    ],
+    "coverage.bin": [
+      "BIN",
+      "Rx BIN",
+      "Pharmacy BIN"
+    ],
+    "coverage.pcn": [
+      "PCN",
+      "Rx PCN",
+      "Processor control number"
+    ],
+    "coverage.group": [
+      "Group",
+      "Rx group",
+      "Group number",
+      "Group ID"
+    ],
+    "coverage.plan_name": [
+      "Plan name",
+      "Insurance plan",
+      "Payer name",
+      "Plan",
+      "Payer",
+      "Selected plan"
+    ],
+    "coverage.benefit": [
+      "Benefit",
+      "Benefit type",
+      "Which benefit covers this request?"
+    ],
+    "coverage.subscriber_employee_id": [
+      "Subscriber/employee ID",
+      "Employee ID",
+      "Subscriber employee ID",
+      "Subscriber / employee ID",
+      "Subscriber or employee ID",
+      "State employee ID of the subscriber"
+    ],
+    "prescriber.npi": [
+      "Prescriber NPI",
+      "NPI of prescribing provider"
+    ],
+    "prescriber.name": [
+      "Prescriber name",
+      "Prescribing provider name"
+    ],
+    "prescriber.fax": [
+      "Prescriber fax",
+      "Prescriber fax number"
+    ],
+    "medication.name": [
+      "Medication name",
+      "Drug name",
+      "Requested medication name"
+    ],
+    "medication.package": [
+      "Package",
+      "Medication package",
+      "Drug package",
+      "Package description"
+    ],
+    "clinical.diagnosis_icd10": [
+      "Diagnosis code",
+      "ICD-10",
+      "ICD-10 diagnosis code",
+      "Primary diagnosis (ICD-10 code)"
+    ],
+    "clinical.diagnosis_description": [
+      "Diagnosis description"
+    ],
+    "clinical.body_surface_area_percent": [
+      "Body surface area (%)",
+      "Body surface area percent",
+      "BSA (%)"
+    ],
+    "clinical.sensitive_areas_affected": [
+      "Are sensitive areas affected?",
+      "Sensitive areas affected"
+    ],
+    "clinical.new_start": [
+      "Is this a new start of therapy?",
+      "Is the patient starting this therapy?",
+      "New start of therapy"
+    ],
+    "clinical.current_therapy_start_date": [
+      "When did the patient start this medication?",
+      "Current therapy start date"
+    ],
+    "clinical.reason_for_change": [
+      "Reason for change",
+      "Reason for changing therapy"
+    ],
+    "clinical.quantity_per_28_days": [
+      "Quantity per 28 days",
+      "Requested quantity per 28 days"
+    ],
+    "clinical.site_of_care": [
+      "Where will the patient receive this medication?",
+      "Site of care"
+    ],
+    "clinical.notes": [
+      "Anything else the reviewer should know",
+      "Clinical notes"
+    ],
+    "pharmacy": [
+      "Pharmacy",
+      "Dispensing pharmacy"
+    ],
+    "attestation_name": [
+      "Your full name",
+      "Attestation name",
+      "Full name of person submitting",
+      "Attesting staff full name"
+    ],
+    "request_id": [
+      "Request ID",
+      "Request number",
+      "Authorization ID",
+      "Key"
+    ],
+    "status": [
+      "Status",
+      "Request status",
+      "Authorization status"
+    ],
+    "confirmation_id": [
+      "Confirmation number",
+      "Confirmation ID",
+      "Confirmation",
+      "Submission confirmation",
+      "Reference number"
+    ]
+  },
+  "pagination_patterns": [
+    "Showing\\s+(?P<first>\\d+)[\u2013-](?P<last>\\d+)\\s+of\\s+(?P<total>\\d+)",
+    "(?P<first>\\d+)\\s*[-\u2013]\\s*(?P<last>\\d+)\\s+of\\s+(?P<total>\\d+)\\s+(?:requests|authorizations)",
+    "Displaying\\s+(?P<first>\\d+)\\s*(?:to|[-\u2013])\\s*(?P<last>\\d+)\\s+of\\s+(?P<total>\\d+)",
+    "(?P<first>\\d+)\\s*[-\u2013]\\s*(?P<last>\\d+)\\s*/\\s*(?P<total>\\d+)\\s+(?:requests|authorizations)"
+  ],
+  "empty_history": [
+    "No requests",
+    "No requests found",
+    "No authorization requests",
+    "No prior authorizations"
+  ],
+  "empty_search": [
+    "No matches",
+    "No patients found",
+    "No matching patients"
+  ],
+  "open_statuses": [
+    "Draft",
+    "In progress",
+    "Sent to plan",
+    "Submitted",
+    "Pending",
+    "Questions from plan",
+    "Answers sent",
+    "Under review"
+  ],
+  "closed_statuses": [
+    "Approved",
+    "Denied",
+    "PA not required",
+    "Cancelled",
+    "Canceled",
+    "Expired",
+    "Rejected"
+  ],
+  "submitted_statuses": [
+    "Sent to plan",
+    "Submitted",
+    "Request submitted",
+    "Successfully submitted"
+  ],
+  "rejected_statuses": [
+    "Submission rejected",
+    "Request rejected"
+  ],
+  "attestation_patterns": [
+    "(?i)by (?:typing|entering) (?:your |my )?name.{0,120}attest.{0,160}(?:accurate|correct)",
+    "(?i)I (?:attest|certify).{0,160}(?:accurate|correct|complete)"
+  ],
+  "reference_patterns": [
+    "(?i)(?:confirmation (?:number|id)|submission confirmation)\\s*[:#]\\s*(?P<id>[A-Za-z0-9][A-Za-z0-9-]{2,80})"
+  ],
+  "context_subjects": {
+    "patient": [
+      "patient",
+      "member",
+      "beneficiary"
+    ],
+    "prescriber": [
+      "prescriber",
+      "provider",
+      "clinician"
+    ],
+    "clinical": [
+      "clinical",
+      "questions",
+      "questionnaire",
+      "diagnosis",
+      "therapy"
+    ],
+    "other_person": [
+      "subscriber",
+      "policyholder",
+      "caregiver",
+      "guardian"
+    ]
+  },
+  "required_review_fields": [
+    "patient.member_id",
+    "patient.date_of_birth",
+    "medication.name",
+    "medication.package",
+    "coverage.bin",
+    "coverage.pcn",
+    "coverage.group",
+    "prescriber.npi"
+  ],
+  "clear_filter_values": [
+    "",
+    "All",
+    "all",
+    "All statuses",
+    "All requests"
+  ],
+  "non_filter_labels": [
+    "Sort",
+    "Sort by",
+    "Sort requests",
+    "Language",
+    "Page size",
+    "Rows per page"
+  ],
+  "all_history_labels": [
+    "All",
+    "All requests",
+    "All statuses"
+  ],
+  "request_id_patterns": [
+    "(?im)^\\s*(?:Request|Authorization)\\s*(?:ID|number|#)\\s*[:#]?\\s*(?P<id>[A-Za-z0-9][A-Za-z0-9-]{0,100})\\s*$"
+  ],
+  "blocking_alert_patterns": [
+    "(?i)answer every required question before sending",
+    "(?i)please correct the following",
+    "(?i)invalid (?:member|patient|prescriber|BIN|PCN|group)",
+    "(?i)required (?:answer|field|question).{0,50}(?:missing|unanswered)"
+  ]
+}

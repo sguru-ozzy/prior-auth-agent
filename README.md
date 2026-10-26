@@ -2,9 +2,9 @@
 
 A controlled browser agent for the Lamar Health prior authorization exercise.
 
-**Status:** all three supplied clean Portal A records complete, including three identical fresh P003 runs.
-All **307 isolated tests** pass. The evaluation has **45/51 runs meeting expectations**;
-6 scenarios still escalate. See the [results and limits](evals/results/README.md).
+**Status:** verified Portal A results are recorded in [evaluation results](evals/results/README.md).
+An endpoint-independent browser workflow is now implemented for unfamiliar portals. This change has
+static checks only; it has not been exercised live or against Portal B.
 
 [Design and decisions](docs/README.md) · [CLI testing guide](docs/testing.md)
 
@@ -22,7 +22,7 @@ uv run --no-sync playwright install chromium
 On Linux, use `uv run --no-sync playwright install --with-deps chromium`.
 The launcher uses the repository's `.venv`; dependencies are pinned in `uv.lock`.
 
-For optional model testing, copy `.env.example` to the ignored `.env`, set its permissions to `600` and add
+For model-assisted planning, copy `.env.example` to the ignored `.env`, set its permissions to `600` and add
 `OPENAI_API_KEY` in your editor. Load it explicitly with `uv run --env-file .env`; an exported key also works.
 
 ## Run
@@ -47,7 +47,10 @@ Missing facts, unsupported questions and ambiguous matches escalate without inve
 
 - Add `--validate-only` for local validation without portal access.
 - Add `--inspect-portal` for sign-in and read-only duplicate/recovery checks.
-- Add `--planner model` for constrained model proposals during sign-in; reviewed rules are the default.
+- The default `--adapter auto` recognizes the reviewed Portal A profile and uses the semantic workflow otherwise.
+- Add `--adapter semantic` to force the endpoint-independent browser loop, or `--adapter reviewed` for Portal A.
+- An exported `OPENAI_API_KEY` enables constrained planning throughout the semantic workflow; without it, candidate selection is deterministic.
+- Add `--planner model` to also require model proposals during reviewed sign-in.
 - Use `--as-of YYYY-MM-DD` to fix the DOB reference date.
 
 Exit **0** means a result was written; read its `status`. Invalid usage or unavailable output storage exits **2**.
@@ -91,11 +94,12 @@ For opt-in live case reports and full-workflow repeatability, see [assignment ev
 - Keep logs free of source values, credentials and raw model output. Results retain the supplied facts used,
   rather than substituting formatted portal values.
 
-Reviewed [validation](src/prior_auth_agent/config/validation.json),
+Reviewed [semantic workflow](src/prior_auth_agent/config/semantic.json),
+[validation](src/prior_auth_agent/config/validation.json),
 [browser/model](src/prior_auth_agent/config/browser.json),
 [recovery](src/prior_auth_agent/config/recovery.json) and
 [workflow](src/prior_auth_agent/config/workflow.json) configuration can be replaced with the corresponding
-`--config`, `--browser-config`, `--recovery-config` and `--workflow-config` options.
+`--semantic-config`, `--config`, `--browser-config`, `--recovery-config` and `--workflow-config` options.
 
 Recovery state defaults to `${XDG_STATE_HOME:-~/.local/state}/prior-auth-agent`, independently of output paths.
 `--state-dir` overrides it. Preserve the directory and unresolved journals across runs.
@@ -104,10 +108,11 @@ this case's journaled, unsent draft with unchanged input and freshly verified id
 It cannot repeat Create or resume a pending Send. A verified completed case replays its saved result.
 After resetting a practice portal, use separate recovery state for that fresh test environment; keep the original journals.
 
-The adapter uses Portal A's observed browser controls and read endpoints. Changed APIs, unfamiliar layouts and
-unreviewed question wording can escalate on Portal B. Fixture repeatability is not evidence of unseen-portal
-coverage or full Portal A hard-case coverage. A live throttled inspection exercised three bounded read retries
-and escalated when the next wait would exceed the run budget, without request writes.
+The reviewed adapter uses Portal A's observed controls and read endpoints. The semantic adapter reads the
+rendered UI, verifies complete history and saved answers, and uses no Portal A endpoints. Its model chooses
+only code-authorized actions; unfamiliar required meanings, ambiguous matches and unsupported evidence escalate.
+Cached plans constrain repeated model choices; first uncached choices can vary. Neither path has verified
+Portal B coverage. See [the semantic workflow design](docs/design/semantic-workflow.md) for boundaries and limits.
 
 ## Layout
 

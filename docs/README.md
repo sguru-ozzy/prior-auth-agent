@@ -8,12 +8,16 @@ The [Portal A results](../evals/results/README.md) summarize the current verific
 
 ## Implementation designs
 
+- [Browser workflow for unfamiliar portals](design/semantic-workflow.md)
+
 - [Evaluation evidence](design/evaluation.md)
 - [Search reliability, interruptions and matching](design/portal-resilience.md)
 - [Complete request workflow](design/complete-request.md)
 - [Duplicate protection and recovery](design/duplicate-recovery.md)
 
 ## PR decision records
+
+- [PR 9: Semantic browser workflow](decisions/009-semantic-browser-workflow.md)
 
 - [PR 1: Reproducible foundation](decisions/001-repository-foundation.md)
 - [PR 2: Validation and results](decisions/002-validation-and-results.md)

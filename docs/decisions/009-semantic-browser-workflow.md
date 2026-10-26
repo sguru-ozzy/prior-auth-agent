@@ -1,0 +1,24 @@
+# 009: Add a browser workflow for unfamiliar portals
+
+**Decision:** keep Portal A's reviewed adapter and add an endpoint-independent semantic path selected
+before request writes. The assignment CLI keeps its four required arguments. Optional `--adapter` and
+`--semantic-config` flags support diagnosis and reviewed configuration.
+
+**Reason:** aliases around Portal A's API contract do not support an unseen portal with different
+navigation, controls and questions. The new loop discovers observed controls and lets a constrained
+planner choose among source-bound actions throughout the workflow.
+
+**Safety boundary:** deterministic code owns meanings, values, validation, duplicate evidence,
+attestation, durable write intent and outcome verification. A model never supplies clinical facts or
+submission permission. Unsupported evidence stops the run. See the [design](../design/semantic-workflow.md).
+
+**Tradeoff:** generic JavaScript UI writes need an action-scoped same-origin network grant rather than
+Portal A's endpoint allowlist. Only one mutation is permitted per action; uncertain writes are not retried.
+The closed semantic vocabulary intentionally sacrifices coverage when meaning cannot be established.
+
+**Verification:** lint, formatting, static typing, Python/JavaScript syntax, configuration schemas and
+CLI help. No tests or live workflows were run for this change, at the user's request. Prior evaluation
+results are retained as evidence for their recorded commit, not for this implementation.
+
+**Next:** exercise this path against independently varied interfaces and rerun Portal A before freezing
+the submission. Lamar performs the actual unseen Portal B evaluation.

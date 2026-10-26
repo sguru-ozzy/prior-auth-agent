@@ -28,6 +28,10 @@ from prior_auth_agent.browser.session import OBSERVE_SCRIPT, PortalBrowser
 from prior_auth_agent.browser.workflow import RequestWorkflow
 from prior_auth_agent.contracts import Credentials, RunResult
 from prior_auth_agent.errors import InputProblem, Issue
+from prior_auth_agent.semantic.browser import SEMANTIC_OBSERVER
+from prior_auth_agent.semantic.contracts import UIProposal, load_semantic_settings
+from prior_auth_agent.semantic.planner import SEMANTIC_PROMPT
+from prior_auth_agent.semantic.workflow import SemanticWorkflow
 from prior_auth_agent.storage.audit import ActionLog
 
 
@@ -66,10 +70,13 @@ def inspect_portal(
     complete: bool = False,
     workflow_config: Path | None = None,
     resume_request: str | None = None,
+    adapter: Literal["auto", "reviewed", "semantic"] = "auto",
+    semantic_config: Path | None = None,
 ) -> Issue | RunResult:
     settings = load_browser_settings(config_path)
     recovery_settings = load_recovery_settings(recovery_config)
     workflow_settings = load_workflow_settings(workflow_config)
+    semantic_settings = load_semantic_settings(semantic_config)
     portal = urlsplit(portal_url)
     auth_origins = sorted(
         set(auth_origins + workflow_settings.auth_origins.get(portal.scheme + "://" + portal.netloc, []))
@@ -87,10 +94,16 @@ def inspect_portal(
                 "observer": OBSERVE_SCRIPT,
                 "planner": planner_kind,
                 "origins": sorted(auth_origins),
+                "adapter": adapter,
+                "semantic": semantic_settings.model_dump(),
+                "semantic_prompt": SEMANTIC_PROMPT,
+                "semantic_observer": SEMANTIC_OBSERVER,
+                "semantic_schema": UIProposal.model_json_schema(),
             }
         ),
     )
-    deadline = time.monotonic() + settings.run_seconds
+    started_at = time.monotonic()
+    deadline = started_at + (settings.run_seconds if adapter == "reviewed" else semantic_settings.run_seconds)
     model: ModelPlanner | None = None
     try:
         with RecoveryGuard(state_directory, portal_url, credentials, facts, recovery_settings, log) as guard:
@@ -109,9 +122,94 @@ def inspect_portal(
                     )
                 model = ModelPlanner(settings, api_key)
                 planner = model
-            browser = PortalBrowser(portal_url, auth_origins, settings, deadline, log)
+            browser = PortalBrowser(portal_url, auth_origins, settings, deadline, log, semantic=adapter != "reviewed")
             with browser:
-                inspection_loop(browser, planner, settings, credentials, log, planner_kind == "model", deadline)
+                reviewed_auth = browser.page.locator("form").evaluate_all(
+                    "(forms, paths) => forms.some(f => f.method.toUpperCase() === 'POST' && "
+                    "paths.includes(new URL(f.action).pathname) && "
+                    "[...f.querySelectorAll('input:not([type=hidden])')]"
+                    ".filter(e=>e.getClientRects().length).length === 1)",
+                    settings.authentication_paths,
+                )
+                reviewed_field = any(
+                    browser.page.get_by_label(label, exact=True).count() == 1
+                    and browser.page.get_by_label(label, exact=True).is_visible()
+                    for binding in settings.bindings
+                    if binding.purpose in ("username", "password")
+                    for label in binding.labels
+                )
+                reviewed_button = any(
+                    browser.page.get_by_role("button", name=label, exact=True).count() == 1
+                    and browser.page.get_by_role("button", name=label, exact=True).is_visible()
+                    for binding in settings.bindings
+                    if binding.purpose in ("continue", "sign_in")
+                    for label in binding.labels
+                )
+                use_semantic = adapter == "semantic" or (
+                    adapter == "auto" and not (reviewed_auth and reviewed_field and reviewed_button)
+                )
+                authenticated = False
+                if not use_semantic:
+                    reviewed_deadline = min(deadline, started_at + settings.run_seconds)
+                    browser.deadline = reviewed_deadline
+                    browser.reads.deadline = reviewed_deadline
+                    inspection_loop(
+                        browser, planner, settings, credentials, log, planner_kind == "model", reviewed_deadline
+                    )
+                    authenticated = True
+                    if adapter == "auto":
+                        # Shared sign-in pages do not establish a shared task interface.
+                        use_semantic = not (
+                            browser.page.get_by_role(
+                                "link", name=workflow_settings.labels["new_request"], exact=True
+                            ).count()
+                            == 1
+                            and browser.page.get_by_role(
+                                "link", name=recovery_settings.history.navigation, exact=True
+                            ).count()
+                            == 1
+                            and browser.page.get_by_role(
+                                "heading", name=recovery_settings.history.heading, exact=True
+                            ).count()
+                            == 0
+                            and any(
+                                browser.page.get_by_role("heading", name=name, exact=True).count() == 1
+                                for name in settings.authenticated_headings
+                            )
+                        )
+                if use_semantic:
+                    browser.deadline = deadline
+                    browser.reads.deadline = deadline
+                    if model is None and os.environ.get("OPENAI_API_KEY"):
+                        model = ModelPlanner(settings, os.environ["OPENAI_API_KEY"])
+                    log.event("portal_adapter_selected", action="semantic")
+                    semantic_workflow = SemanticWorkflow(
+                        browser, guard, semantic_settings, settings, workflow_settings, facts, credentials, log, model
+                    )
+                    try:
+                        return semantic_workflow.run(
+                            complete=complete, resume_request=resume_request, authenticated=authenticated
+                        )
+                    except InputProblem as error:
+                        log.event("semantic_workflow_escalated", issue=error.issue)
+                        return RunResult.from_issue(error.issue).model_copy(
+                            update={"fields_filled": semantic_workflow.fields}
+                        )
+                    except (BrowserError, AssertionError, ValidationError, ValueError):
+                        issue = Issue(
+                            "portal.workflow",
+                            "semantic_workflow_interrupted",
+                            "The unfamiliar-portal workflow was interrupted; its write outcome may be unresolved.",
+                            "Preserve the journal and inspect the existing request; do not repeat Create or Send.",
+                        )
+                        log.event("semantic_workflow_escalated", issue=issue)
+                        return RunResult.from_issue(issue).model_copy(
+                            update={"fields_filled": semantic_workflow.fields}
+                        )
+                log.event("portal_adapter_selected", action="reviewed")
+                deadline = min(deadline, started_at + settings.run_seconds)
+                browser.deadline = deadline
+                browser.reads.deadline = deadline
                 history = RequestHistoryReader(browser, recovery_settings.history, log).read(
                     facts, guard.journal.case_key, guard.journal.request_id
                 )
