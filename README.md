@@ -4,7 +4,7 @@ A controlled browser agent for the Lamar Health prior authorization exercise.
 
 **Status:** the normal CLI completed a fresh live Portal A run for supplied P003, including new-patient entry,
 saved answers, full-name attestation and verified confirmation `QMS-00001`. The log records one Create;
-the portal independently confirms one Send. All 254 local tests pass. Full hard-case evaluation remains pending.
+the portal independently confirms one Send. All 286 isolated tests pass. Full hard-case evaluation remains pending.
 
 [Design and decisions](docs/README.md) · [CLI testing guide](docs/testing.md)
 
@@ -64,7 +64,7 @@ uv build --no-sources
 ```
 
 Tests use isolated synthetic fixtures and need neither Portal A nor an API key.
-CI tests a non-editable installed package on Ubuntu. Use `uv sync --locked --no-editable` to reproduce it;
+CI tests a non-editable installed package on Ubuntu. Use `uv sync --locked --no-editable --reinstall-package prior-auth-agent` to reproduce it;
 `uv sync --locked` restores editable development.
 
 ## Design
@@ -72,7 +72,10 @@ CI tests a non-editable installed package on Ubuntu. Use `uv sync --locked --no-
 **LLM proposes → validator checks → workflow authorizes → browser executes and verifies.**
 
 - Validate Section 4 rules before portal access. Preserve source facts, including missing, null, false and zero.
-- Enter a new patient only after an explicit no-match result. Verify all saved patient fields before Create.
+- Enter a new patient only after a successful search tied to the current query proves no matches.
+  Verify all saved patient fields before Create.
+- Retry reads within configured limits; never replay Create or Send. Dismiss only reviewed notices.
+- Match reviewed equivalent labels and native controls; escalate unfamiliar or ambiguous meanings.
 - Bind reviewed question wording and kinds to source fields. Unknown required meanings or missing answers escalate.
 - Evaluate conditional questions; type reviewed formats and verify both visible controls and persisted answers.
 - Keep optional unsupported answers blank. Prior-therapy classification uses a closed, reviewed configuration;
@@ -101,7 +104,8 @@ After resetting a practice portal, use separate recovery state for that fresh te
 
 The adapter uses Portal A's observed browser controls and read endpoints. Changed APIs, unfamiliar layouts and
 unreviewed question wording can escalate on Portal B. Fixture repeatability is not evidence of unseen-portal
-coverage or full Portal A hard-case coverage.
+coverage or full Portal A hard-case coverage. A live throttled inspection exercised three bounded read retries
+and escalated when the next wait would exceed the run budget, without request writes.
 
 ## Layout
 

@@ -28,7 +28,8 @@
   "question_rules": [
     {
       "labels": [
-        "Primary diagnosis (ICD-10 code)"
+        "Primary diagnosis (ICD-10 code)",
+        "ICD-10 diagnosis code"
       ],
       "kinds": [
         "text"
@@ -38,7 +39,8 @@
     },
     {
       "labels": [
-        "Is this a new start of therapy?"
+        "Is this a new start of therapy?",
+        "Is the patient starting this therapy?"
       ],
       "kinds": [
         "radio"
@@ -78,7 +80,8 @@
     },
     {
       "labels": [
-        "Quantity per 28 days"
+        "Quantity per 28 days",
+        "Requested quantity per 28 days"
       ],
       "kinds": [
         "number"
@@ -88,7 +91,8 @@
     },
     {
       "labels": [
-        "Where will the patient receive this medication?"
+        "Where will the patient receive this medication?",
+        "Site of care"
       ],
       "kinds": [
         "radio"
@@ -161,7 +165,9 @@
     "detail": "/api/requests/{request_id}",
     "questions": "/api/requests/{request_id}/questions",
     "answers": "/api/requests/{request_id}/answers",
-    "send": "/api/requests/{request_id}/send"
+    "send": "/api/requests/{request_id}/send",
+    "patient_search": "/api/patients",
+    "medication_search": "/api/drugs"
   },
   "wait_ms": 10000,
   "max_question_rounds": 1,
@@ -191,5 +197,74 @@
     "patient.zip_code": "ZIP code",
     "patient.member_id": "Member ID"
   },
-  "state_option_pattern": "^{value}\\s+\u00b7\\s+.+$"
+  "state_option_pattern": "^{value}\\s+\u00b7\\s+.+$",
+  "patient_search_query_key": "q",
+  "label_aliases": {
+    "patient_search": [
+      "Find patient",
+      "Find a patient"
+    ],
+    "new_patient": [
+      "Enter new patient"
+    ],
+    "new_request": [
+      "Start request"
+    ],
+    "patient_region": [
+      "Patient",
+      "Patient information"
+    ],
+    "medication_region": [
+      "Medication",
+      "Requested medication"
+    ],
+    "plan_region": [
+      "Coverage",
+      "Plan and form"
+    ],
+    "medication_search": [
+      "Drug",
+      "Requested medication"
+    ],
+    "find_forms": [
+      "Find plan forms"
+    ],
+    "create": [
+      "Create authorization request"
+    ],
+    "save": [
+      "Save answers"
+    ],
+    "questions": [
+      "Plan questions"
+    ]
+  },
+  "field_aliases": {
+    "patient.first_name": [
+      "Given name"
+    ],
+    "patient.last_name": [
+      "Family name",
+      "Surname"
+    ],
+    "patient.date_of_birth": [
+      "DOB",
+      "Birth date"
+    ],
+    "patient.zip_code": [
+      "Postal code"
+    ],
+    "patient.member_id": [
+      "Insurance member ID"
+    ],
+    "coverage.bin": [
+      "Rx BIN"
+    ],
+    "coverage.pcn": [
+      "Rx PCN"
+    ],
+    "coverage.group": [
+      "Rx group"
+    ]
+  }
 }

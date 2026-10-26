@@ -85,5 +85,24 @@
       "purpose": "fact",
       "source": "patient.first_name"
     }
-  ]
+  ],
+  "read_retry": {
+    "attempts": 3,
+    "delay_ms": 200,
+    "max_retry_after_ms": 30000,
+    "statuses": [
+      429,
+      502,
+      503,
+      504
+    ]
+  },
+  "known_overlays": [
+    {
+      "id": "cookie_notice",
+      "text": "Quillmere uses cookies to keep you signed in and, with your permission, to measure how the site is used. Preferences Reject non-essential Accept all",
+      "dismiss": "Reject non-essential"
+    }
+  ],
+  "max_overlay_dismissals": 3
 }

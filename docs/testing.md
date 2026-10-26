@@ -18,7 +18,7 @@ No running portal or API key is needed.
 ```
 
 Expected: `ESCALATED` at `portal.workflow`, with no portal access attempted.
-For read-only inspection, add --inspect-portal to the [README command](../README.md#run).
+For read-only inspection, add `--inspect-portal` to the [README command](../README.md#run).
 
 ## Model inspection
 
@@ -144,7 +144,7 @@ XDG_STATE_HOME="$PWD/artifacts/fresh-portal-20261025-final" ./run_agent \
 
 Result: `SUCCESS`, `QMS-00001`. The log records one Create and one Send. A separate portal check confirms
 "Sent to plan" and exactly one Send. Evidence is in `artifacts/fresh-p003-final.portal.json` and
-`artifacts/fresh-p003-final.png`. All 254 local tests pass; the wheel and source distribution build.
+`artifacts/fresh-p003-final.png`. All 286 isolated tests pass; the wheel and source distribution build.
 The required ten-case live hard-case report remains pending.
 
 Keep one recovery directory per portal environment. This run followed a user-approved fresh practice-server
@@ -154,3 +154,22 @@ environment. A completed case returns its persisted result without creating or s
 Normal runs use the four required flags. An existing open request escalates. After operator review,
 `--resume-request <ID>` may continue only the journal's own unsent draft with unchanged input and freshly
 verified identity, answers and history. It cannot repeat Create or resume a pending Send.
+
+## Search and interruption checks
+
+```bash
+uv run --no-sync pytest tests/unit/test_reads.py tests/unit/test_matching.py \
+  tests/integration/test_request_history.py tests/integration/test_workflow_cli.py
+```
+
+These isolated cases cover slow and stale searches, bounded read retries, reviewed and changed notices, native
+controls, equivalent wording and no Send retry after throttling. The backend independently counts writes.
+
+For a live read-only check, add `?scenario=throttled` to Portal A's URL and use `--inspect-portal`. Inspect
+`portal_read_retry`, `history_read_retry` and `request_history_verified` in the action log. Existing pending cases
+can correctly end in escalation even after history is verified. Do not clear their journals or send again.
+
+The live read-only throttled run is saved privately as `artifacts/inspect-throttled-countdown.json` and its action
+log. It exercised three read retries, then returned `ESCALATED` because another wait would exceed the run budget.
+There were no Create/Send intents. This verifies bounded stopping; it does not prove successful completion under
+sustained throttling. Keep complete-history and evidence-freshness checks when improving this case.

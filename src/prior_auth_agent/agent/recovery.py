@@ -36,6 +36,12 @@ class HistoryRules(StrictModel):
     closed_statuses: list[str]
     submitted_statuses: list[str]
     receipt_pattern: str
+    read_retry_button: str = "Try again"
+    read_endpoint: str = "/api/requests"
+    read_error_pattern: str = r"^The list could not be loaded \((?:no answer|429|502|503|504)\)\.$"
+    max_read_retries: int = Field(default=2, ge=0, le=3)
+    throttle_pattern: str
+    throttle_retry_button: str
 
 
 class RecoverySettings(StrictModel):
@@ -57,6 +63,9 @@ class RecoverySettings(StrictModel):
         if not {"first", "last", "total"} <= summary.groupindex.keys():
             raise ValueError("The summary must prove pagination bounds.")
         re.compile(self.history.receipt_pattern)
+        re.compile(self.history.read_error_pattern)
+        if "seconds" not in re.compile(self.history.throttle_pattern).groupindex:
+            raise ValueError("The throttle pattern must expose its bounded countdown.")
         return self
 
 

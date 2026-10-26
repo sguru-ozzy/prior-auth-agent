@@ -5,6 +5,7 @@ import os
 import stat
 import subprocess
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from pydantic import JsonValue, ValidationError
@@ -36,10 +37,15 @@ def arguments(patient: Path, credentials: Path, output: Path) -> list[str]:
         str(output),
         "--as-of",
         "2026-10-25",
+        "--validate-only",
     ]
 
 
-def test_valid_record_reports_honest_handoff_without_network(tmp_path: Path, record: dict[str, JsonValue]) -> None:
+def test_valid_record_reports_honest_handoff_without_network(
+    tmp_path: Path, record: dict[str, JsonValue], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    inspection = Mock(side_effect=AssertionError("Validation-only mode must not access the portal."))
+    monkeypatch.setattr("prior_auth_agent.runner.inspect_portal", inspection)
     patient, credentials, output = inputs(tmp_path, record)
     assert main(arguments(patient, credentials, output)) == 0
     result = RunResult.model_validate_json(output.read_text())
@@ -47,6 +53,7 @@ def test_valid_record_reports_honest_handoff_without_network(tmp_path: Path, rec
     assert result.escalation.field == "portal.workflow"
     assert result.confirmation_id == ""
     assert result.fields_filled == {}
+    inspection.assert_not_called()
     assert stat.S_IMODE(action_log_path(output).stat().st_mode) == 0o600
 
 

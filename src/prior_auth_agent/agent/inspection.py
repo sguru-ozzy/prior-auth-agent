@@ -109,7 +109,8 @@ def inspect_portal(
                     )
                 model = ModelPlanner(settings, api_key)
                 planner = model
-            with PortalBrowser(portal_url, auth_origins, settings, deadline) as browser:
+            browser = PortalBrowser(portal_url, auth_origins, settings, deadline, log)
+            with browser:
                 inspection_loop(browser, planner, settings, credentials, log, planner_kind == "model", deadline)
                 history = RequestHistoryReader(browser, recovery_settings.history, log).read(
                     facts, guard.journal.case_key, guard.journal.request_id

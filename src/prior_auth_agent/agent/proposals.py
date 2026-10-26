@@ -48,6 +48,19 @@ class Binding(StrictModel):
         return self
 
 
+class ReadRetrySettings(StrictModel):
+    attempts: int = Field(default=3, ge=1, le=4)
+    delay_ms: int = Field(default=200, ge=0, le=2000)
+    max_retry_after_ms: int = Field(default=30000, ge=0, le=30000)
+    statuses: list[int] = Field(default_factory=lambda: [429, 502, 503, 504])
+
+
+class OverlayRule(StrictModel):
+    id: str = Field(pattern=r"^[a-z][a-z0-9_.]{0,63}$")
+    text: str = Field(min_length=1)
+    dismiss: str = Field(min_length=1)
+
+
 class BrowserSettings(StrictModel):
     version: str
     model: str = Field(min_length=1)
@@ -61,6 +74,9 @@ class BrowserSettings(StrictModel):
     authentication_paths: list[str] = Field(min_length=1)
     authenticated_headings: list[str] = Field(min_length=1)
     bindings: list[Binding] = Field(min_length=1)
+    read_retry: ReadRetrySettings = Field(default_factory=ReadRetrySettings)
+    known_overlays: list[OverlayRule] = Field(default_factory=list)
+    max_overlay_dismissals: int = Field(default=3, ge=0, le=5)
 
     @model_validator(mode="after")
     def check_registry(self) -> "BrowserSettings":

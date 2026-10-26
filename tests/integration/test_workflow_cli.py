@@ -5,11 +5,12 @@ import html
 import json
 import os
 import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from playwright.sync_api import Error as BrowserError
@@ -81,6 +82,9 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
         "answers": {},
         "status": "Draft",
         "wizard": {},
+        "search_reads": 0,
+        "send_attempts": 0,
+        "history_reads": 0,
     }
     recovery = load_recovery_settings().history
     patient = {**facts["patient"], "gender": "Female"}
@@ -93,6 +97,10 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
         "electronic": scenario not in ("fax", "missing-clinical-facts", "late-missing-questions"),
     }
     questions = copy.deepcopy(QUESTIONS)
+    if scenario == "alternate-layout":
+        questions[0]["text"] = "ICD-10 diagnosis code"
+        questions[1]["text"] = "Is the patient starting this therapy?"
+        questions[2]["text"] = "Requested quantity per 28 days"
     if scenario == "unknown-question":
         questions.append(
             {
@@ -153,6 +161,31 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
         )
         controls += '<button id="state" aria-label="State" onclick="patientOptionsFor(\'state\')">Select state</button>'
         controls += '<div id="patient-options"></div>'
+        if scenario == "alternate-layout":
+            controls = "".join(
+                "<label>"
+                + label
+                + '<input type="'
+                + ("date" if key == "date_of_birth" else "text")
+                + '" oninput="patientValue(\''
+                + key
+                + "',this.value)\"></label>"
+                for key, label in text_fields.items()
+            )
+            controls += (
+                "<label>Gender<select aria-label='Gender' onchange=\"patientValue('gender',this.value)\">"
+                '<option value="">Choose</option>'
+                "<option>Female</option>"
+                "<option>Male</option>"
+                "</select></label>"
+            )
+            controls += (
+                "<label>State<select aria-label='State' onchange=\"patientValue('state',this.value)\">"
+                '<option value="">Choose</option>'
+                '<option value="OH">OH · Ohio</option>'
+                '<option value="PA">PA · Pennsylvania</option>'
+                "</select></label>"
+            )
         return (
             (FIXTURES / "intake.html")
             .read_text(encoding="utf-8")
@@ -233,7 +266,8 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
                     )
                 controls += "</div>"
             else:
-                controls += "<label>" + text + '<input id="' + key + '"></label>'
+                input_type = ' type="number"' if scenario == "alternate-layout" and question["kind"] == "number" else ""
+                controls += "<label>" + text + "<input" + input_type + ' id="' + key + '"></label>'
         return (
             '<h1>REQ-TEST Draft</h1><button role="tab">Questions</button>'
             + controls
@@ -254,8 +288,46 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
             self.respond(json.dumps(value), "application/json")
 
         def page(self, content: str) -> None:
+            overlay = ""
+            if scenario in ("known-overlay", "recurring-overlay", "unknown-overlay") and self.path == "/new":
+                message = (
+                    "Quillmere uses cookies to keep you signed in and, with your permission, "
+                    "to measure how the site is used."
+                )
+                if scenario == "unknown-overlay":
+                    message = "Attest that this clinical request is accurate before continuing."
+                dismiss = "" if scenario == "recurring-overlay" else "this.parentElement.remove()"
+                overlay = (
+                    '<div style="position:fixed;inset:0;z-index:100;background:white"><p>'
+                    + message
+                    + '</p><button>Preferences</button><button onclick="'
+                    + dismiss
+                    + '">Reject non-essential</button><button>Accept all</button></div>'
+                )
+            if scenario == "alternate-layout" and self.path == "/new":
+                for old, new in (
+                    ("First name", "Given name"),
+                    ("Last name", "Family name"),
+                    ("Date of birth", "DOB"),
+                    ("ZIP code", "Postal code"),
+                    ("Member ID", "Insurance member ID"),
+                    ("Search patients", "Find patient"),
+                    ("1 Patient", "Patient information"),
+                    ("2 Medication", "Requested medication"),
+                    ("3 Plan and form", "Coverage"),
+                    (">BIN<", ">Rx BIN<"),
+                    (">PCN<", ">Rx PCN<"),
+                    (">Group<", ">Rx group<"),
+                    ("Find forms", "Find plan forms"),
+                    ("Create request", "Create authorization request"),
+                    ("New patient", "Enter new patient"),
+                ):
+                    content = content.replace(old, new)
             self.respond(
-                '<nav><a href="/requests">Requests</a><a href="/new">New request</a></nav><main>' + content + "</main>"
+                '<nav><a href="/requests">Requests</a><a href="/new">New request</a></nav><main>'
+                + content
+                + overlay
+                + "</main>"
             )
 
         def do_GET(self) -> None:
@@ -296,6 +368,31 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
                     if total
                     else ""
                 )
+                state["history_reads"] += 1
+                if scenario in ("history-throttled", "history-countdown", "history-unavailable") and (
+                    scenario == "history-unavailable" or state["history_reads"] <= 2
+                ):
+                    message = "The list could not be loaded (no answer)."
+                    label = "Try again"
+                    if scenario == "history-countdown":
+                        message = (
+                            "Too many requests. Quillmere is limiting how fast this account can load pages. "
+                            "The rest of this page loads in 0 seconds."
+                        )
+                        label = "Try again now"
+                    self.page(
+                        "<h1>Requests</h1>"
+                        + filters
+                        + statuses
+                        + '<button>Clear filters</button><div role="alert">'
+                        + message
+                        + ("" if scenario == "history-countdown" else "</div>")
+                        + '<button onclick="location.reload()">'
+                        + label
+                        + "</button>"
+                        + ("</div>" if scenario == "history-countdown" else "")
+                    )
+                    return
                 self.page(
                     "<h1>Requests</h1>"
                     + filters
@@ -318,6 +415,26 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
                         "user": {"username": "SYNTHETIC_USER"},
                     }
                 )
+            elif path == "/api/drugs":
+                self.json({"query": parse_qs(urlsplit(self.path).query).get("q", [""])[0], "results": [drug]})
+            elif path == "/api/patients":
+                state["search_reads"] += 1
+                query = parse_qs(urlsplit(self.path).query).get("q", [""])[0]
+                if scenario == "delayed-search":
+                    time.sleep(0.3)
+                if scenario == "throttled-search" and state["search_reads"] <= 2:
+                    self.send_response(429)
+                    self.send_header("Retry-After", "0")
+                    self.end_headers()
+                    self.wfile.write(b"Temporarily throttled")
+                    return
+                if scenario == "search-unavailable":
+                    self.respond("Temporarily unavailable", status=503)
+                    return
+                results = [] if scenario in ("new-patient", "new-patient-mismatch", "alternate-layout") else [patient]
+                if scenario == "ambiguous-patient":
+                    results = [patient, patient]
+                self.json({"query": "OLD_QUERY" if scenario == "stale-query" else query, "results": results})
             elif path == "/api/wizard":
                 self.json({"draft": state["wizard"]})
             elif path == "/api/requests/REQ-TEST":
@@ -395,6 +512,7 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
                 state["creates"] += 1
                 self.json({"key": "REQ-TEST"})
             elif self.path == "/api/requests/REQ-TEST/send":
+                state["send_attempts"] += 1
                 journal = next((Path(os.environ["XDG_STATE_HOME"]) / "prior-auth-agent").glob("*.json"))
                 state["send_phase"] = json.loads(journal.read_text())["phase"]
                 if state["send_phase"] != "SEND_PENDING":
@@ -412,6 +530,9 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
                     "attested": True,
                 }:
                     self.respond("Bad source facts", status=422)
+                    return
+                if scenario == "send-throttled":
+                    self.respond("Temporarily throttled", status=429)
                     return
                 if scenario == "send-validation":
                     self.respond("Attestation name is not accepted for this request.", status=422)
@@ -678,3 +799,62 @@ def test_ambiguous_patient_search_never_enters_a_new_patient_or_creates_a_reques
         assert result["escalation"]["field"] == "patient.member_id"
         assert state["creates"] == state["sends"] == 0
         assert "portal.new_patient" not in (tmp_path / "result.actions.jsonl").read_text()
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        "delayed-search",
+        "throttled-search",
+        "history-throttled",
+        "history-countdown",
+        "known-overlay",
+        "alternate-layout",
+    ],
+)
+def test_reviewed_variations_complete_without_repeating_writes(
+    tmp_path: Path, record: dict[str, JsonValue], scenario: str
+) -> None:
+    with portal(record, scenario) as (url, state):
+        assert main(arguments(tmp_path, record, url)) == 0
+        result = json.loads((tmp_path / "result.json").read_text())
+        assert result["status"] == "SUCCESS", result
+        assert state["creates"] == state["sends"] == 1
+        events = (tmp_path / "result.actions.jsonl").read_text()
+        if scenario == "throttled-search":
+            assert events.count('"event": "portal_read_retry"') == 2
+        if scenario in ("history-throttled", "history-countdown"):
+            assert events.count('"event": "history_read_retry"') == 2
+        if scenario == "known-overlay":
+            assert '"event": "known_overlay_dismissed"' in events
+        if scenario == "delayed-search":
+            assert '"binding": "portal.new_patient"' not in events
+
+
+@pytest.mark.parametrize(
+    "scenario", ["stale-query", "search-unavailable", "history-unavailable", "recurring-overlay", "unknown-overlay"]
+)
+def test_unsafe_or_exhausted_variations_escalate_before_create(
+    tmp_path: Path, record: dict[str, JsonValue], scenario: str
+) -> None:
+    with portal(record, scenario) as (url, state):
+        assert main(arguments(tmp_path, record, url)) == 0
+        result = json.loads((tmp_path / "result.json").read_text())
+        assert result["status"] == "ESCALATED", result
+        assert state["creates"] == state["sends"] == 0
+        if scenario == "search-unavailable":
+            assert state["search_reads"] == 3
+        if scenario == "recurring-overlay":
+            assert '"code": "overlay_limit"' in (tmp_path / "result.actions.jsonl").read_text()
+
+
+def test_send_throttling_is_never_retried_even_on_a_new_invocation(
+    tmp_path: Path, record: dict[str, JsonValue]
+) -> None:
+    with portal(record, "send-throttled") as (url, state):
+        args = arguments(tmp_path, record, url)
+        assert main(args) == 0
+        assert state["send_attempts"] == 1 and state["sends"] == 0
+        assert json.loads((tmp_path / "result.json").read_text())["status"] == "ESCALATED"
+        assert main(args) == 0
+        assert state["send_attempts"] == 1 and state["sends"] == 0
