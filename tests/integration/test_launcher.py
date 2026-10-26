@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-REPOSITORY = Path(__file__).resolve().parents[1]
+REPOSITORY = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.parametrize("entry_point", ["repository", "module", "console"])

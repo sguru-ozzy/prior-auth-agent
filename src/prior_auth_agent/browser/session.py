@@ -6,11 +6,11 @@ from urllib.parse import urlsplit
 
 from playwright.sync_api import BrowserContext, Dialog, Locator, Page, Request, Route, expect, sync_playwright
 
+from prior_auth_agent.agent.proposals import Binding, BrowserSettings, Control, Observation, digest, normalize, stop
 from prior_auth_agent.contracts import Credentials
-from prior_auth_agent.proposals import Binding, BrowserSettings, Control, Observation, digest, normalize, stop
 from prior_auth_agent.validation import validate_url
 
-OBSERVE_SCRIPT = files("prior_auth_agent").joinpath("observe.js").read_text(encoding="utf-8")
+OBSERVE_SCRIPT = files("prior_auth_agent.browser").joinpath("observe.js").read_text(encoding="utf-8")
 
 
 def origin(url: str) -> str:

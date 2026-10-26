@@ -6,9 +6,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from prior_auth_agent.errors import InputProblem
-from prior_auth_agent.inspection import authorize
-from prior_auth_agent.proposals import (
+from prior_auth_agent.agent.inspection import authorize
+from prior_auth_agent.agent.proposals import (
     Control,
     Observation,
     Proposal,
@@ -16,6 +15,7 @@ from prior_auth_agent.proposals import (
     load_browser_settings,
     validate_proposal,
 )
+from prior_auth_agent.errors import InputProblem
 
 
 def observation(label: str, section: str = "Patient") -> Observation:

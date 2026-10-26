@@ -7,9 +7,9 @@ import pytest
 from openai import OpenAI
 from pydantic import JsonValue
 
+from prior_auth_agent.agent.planner import ModelPlanner, TransportProblem
+from prior_auth_agent.agent.proposals import Candidate, Control, Observation, load_browser_settings
 from prior_auth_agent.errors import InputProblem
-from prior_auth_agent.planner import ModelPlanner, TransportProblem
-from prior_auth_agent.proposals import Candidate, Control, Observation, load_browser_settings
 
 
 def test_sdk_sends_only_reviewed_references_and_enforces_constraints() -> None:

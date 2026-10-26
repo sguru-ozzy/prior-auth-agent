@@ -7,12 +7,8 @@ from typing import Literal
 
 from playwright.sync_api import Error as BrowserError
 
-from prior_auth_agent.audit import ActionLog
-from prior_auth_agent.browser import OBSERVE_SCRIPT, PortalBrowser
-from prior_auth_agent.contracts import Credentials
-from prior_auth_agent.errors import InputProblem, Issue
-from prior_auth_agent.planner import PROMPT, ModelPlanner, Planner, ReviewedPlanner, TransportProblem
-from prior_auth_agent.proposals import (
+from prior_auth_agent.agent.planner import PROMPT, ModelPlanner, Planner, ReviewedPlanner, TransportProblem
+from prior_auth_agent.agent.proposals import (
     BrowserSettings,
     Candidate,
     Observation,
@@ -23,6 +19,10 @@ from prior_auth_agent.proposals import (
     stop,
     validate_proposal,
 )
+from prior_auth_agent.browser.session import OBSERVE_SCRIPT, PortalBrowser
+from prior_auth_agent.contracts import Credentials
+from prior_auth_agent.errors import InputProblem, Issue
+from prior_auth_agent.storage.audit import ActionLog
 
 
 def authorize(observation: Observation, settings: BrowserSettings, completed: set[str]) -> list[Candidate]:

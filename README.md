@@ -174,8 +174,8 @@ unchanged and uninterpreted.
 Nullable or optional facts can remain missing until a portal question requires them. Plan identity, medication
 matching and the account's prescriber identity require portal evidence and remain outside this milestone.
 
-Reviewed rules live in `src/prior_auth_agent/settings.json`; `--config` selects a complete reviewed replacement.
-Browser bindings, authentication paths, model ID and limits live in `browser_settings.json`;
+Reviewed rules live in `src/prior_auth_agent/config/validation.json`; `--config` selects a complete reviewed replacement.
+Browser bindings, authentication paths, model ID and limits live in `src/prior_auth_agent/config/browser.json`;
 `--browser-config` selects a complete reviewed replacement. Freeze these with the evaluated release.
 
 The model ID is fixed to `gpt-6-luna`, with reasoning effort `none`, one strict function call, no parallel
@@ -211,8 +211,8 @@ Run the five-repeat checks independently:
 
 ```bash
 uv run --no-sync pytest \
-  tests/test_runner.py::test_complete_logs_and_results_repeat_identically \
-  tests/test_browser.py::test_five_real_browser_repeats_have_identical_logs
+  tests/integration/test_runner.py::test_complete_logs_and_results_repeat_identically \
+  tests/integration/test_browser.py::test_five_real_browser_repeats_have_identical_logs
 ```
 
 Expected: `2 passed`. These compare preflight result/log bytes and fixture-browser outcomes/log bytes.
@@ -220,7 +220,7 @@ Expected: `2 passed`. These compare preflight result/log bytes and fixture-brows
 To compare live Portal A inspection results and complete logs across five fresh browser sessions:
 
 ```bash
-uv run --env-file .env --no-sync python tests/evaluate_inspection.py \
+uv run --env-file .env --no-sync python evals/inspect_repeatability.py \
   --portal-url http://127.0.0.1:9463/dashboard \
   --patient tests/fixtures/patient.json \
   --credentials ../portal-a/examples/credentials.json \
@@ -241,8 +241,26 @@ Reproduce that package mode with `uv sync --locked --no-editable`; return to dev
 
 ## Structure and local files
 
-- `src/prior_auth_agent/`: contracts, validation, browser, proposal controller and artifacts.
-- `tests/`: automated tests, synthetic fixtures and the opt-in live inspection evaluator.
+The CLI and runner stay at the package entry point; related code is grouped by responsibility:
+
+```text
+src/prior_auth_agent/
+  cli.py, runner.py           CLI and run orchestration
+  contracts.py, errors.py     Shared contracts and handoffs
+  validation.py              Source-record checks
+  agent/                     Proposals, model client and inspection loop
+  browser/                   Browser session and DOM observer
+  config/                    Reviewed validation and browser rules
+  storage/                   Input JSON, result files and action logs
+tests/
+  unit/                      Validation, proposals, planner and storage tests
+  integration/               Browser, runner and CLI tests
+  fixtures/                  Supplied synthetic records
+evals/
+  inspect_repeatability.py   Opt-in live inspection comparison
+```
+
+- `tests/conftest.py`: shared fixtures and the Python network guard.
 - `.env.example`: committed key template; `.env`: ignored local key, loaded explicitly.
 - `local/`: ignored patient inputs, credentials and local configuration.
 - `artifacts/`: ignored results and action logs.

@@ -7,9 +7,9 @@ from typing import Protocol
 from openai import APIConnectionError, APIStatusError, OpenAI, OpenAIError
 from pydantic import JsonValue, ValidationError
 
-from prior_auth_agent.proposals import BrowserSettings, Candidate, Observation, Proposal, stop
+from prior_auth_agent.agent.proposals import BrowserSettings, Candidate, Observation, Proposal, stop
 
-PROMPT = files("prior_auth_agent").joinpath("planner_prompt.txt").read_text(encoding="utf-8")
+PROMPT = files("prior_auth_agent.agent").joinpath("planner_prompt.txt").read_text(encoding="utf-8")
 
 
 def _unique_proposal(pairs: list[tuple[str, JsonValue]]) -> dict[str, JsonValue]:

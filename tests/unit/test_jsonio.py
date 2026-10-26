@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from prior_auth_agent import jsonio
 from prior_auth_agent.errors import InputProblem
+from prior_auth_agent.storage import jsonio
 
 
 @pytest.mark.parametrize(

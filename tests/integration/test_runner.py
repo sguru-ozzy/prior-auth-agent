@@ -149,7 +149,7 @@ def test_invalid_config_produces_handoff(tmp_path: Path, record: dict[str, JsonV
 
 def test_required_cli_works_from_another_directory(tmp_path: Path, record: dict[str, JsonValue]) -> None:
     patient, credentials, output = inputs(tmp_path, record)
-    launcher = Path(__file__).resolve().parents[1] / "run_agent"
+    launcher = Path(__file__).resolve().parents[2] / "run_agent"
     completed = subprocess.run(
         [str(launcher), *arguments(patient, credentials, output)],
         cwd=tmp_path,

@@ -9,13 +9,13 @@ from pathlib import Path
 
 import pytest
 
-from prior_auth_agent.audit import ActionLog
-from prior_auth_agent.browser import PortalBrowser
+from prior_auth_agent.agent.inspection import inspection_loop
+from prior_auth_agent.agent.planner import ReviewedPlanner
+from prior_auth_agent.agent.proposals import candidates, load_browser_settings
+from prior_auth_agent.browser.session import PortalBrowser
 from prior_auth_agent.contracts import Credentials
 from prior_auth_agent.errors import InputProblem
-from prior_auth_agent.inspection import inspection_loop
-from prior_auth_agent.planner import ReviewedPlanner
-from prior_auth_agent.proposals import candidates, load_browser_settings
+from prior_auth_agent.storage.audit import ActionLog
 
 
 @pytest.fixture

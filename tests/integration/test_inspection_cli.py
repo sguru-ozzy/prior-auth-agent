@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from pydantic import JsonValue
 
+from prior_auth_agent.agent.proposals import DEFAULT_BROWSER_SETTINGS
 from prior_auth_agent.cli import main
-from prior_auth_agent.proposals import DEFAULT_BROWSER_SETTINGS
 
 
 def arguments(tmp_path: Path, record: dict[str, JsonValue]) -> list[str]:

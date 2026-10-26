@@ -7,12 +7,12 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Literal
 
-from prior_auth_agent.audit import ActionLog
+from prior_auth_agent.agent.inspection import inspect_portal
+from prior_auth_agent.agent.proposals import DEFAULT_BROWSER_SETTINGS
 from prior_auth_agent.contracts import RunResult
 from prior_auth_agent.errors import InputProblem, Issue
-from prior_auth_agent.inspection import inspect_portal
-from prior_auth_agent.jsonio import load_object, write_atomic
-from prior_auth_agent.proposals import DEFAULT_BROWSER_SETTINGS
+from prior_auth_agent.storage.audit import ActionLog
+from prior_auth_agent.storage.jsonio import load_object, write_atomic
 from prior_auth_agent.validation import (
     DEFAULT_SETTINGS,
     load_settings,

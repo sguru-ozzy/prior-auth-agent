@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from prior_auth_agent.audit import ActionLog
+from prior_auth_agent.agent.inspection import inspection_loop
+from prior_auth_agent.agent.planner import TransportProblem
+from prior_auth_agent.agent.proposals import Candidate, Control, Observation, Proposal, load_browser_settings
 from prior_auth_agent.contracts import Credentials
 from prior_auth_agent.errors import InputProblem
-from prior_auth_agent.inspection import inspection_loop
-from prior_auth_agent.planner import TransportProblem
-from prior_auth_agent.proposals import Candidate, Control, Observation, Proposal, load_browser_settings
+from prior_auth_agent.storage.audit import ActionLog
 
 
 class StationaryBrowser:
@@ -107,7 +107,7 @@ def test_repeated_waits_stop_on_no_progress(tmp_path: Path) -> None:
 
 def test_retries_are_bounded_logged_and_honor_retry_after(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     delays = []
-    monkeypatch.setattr("prior_auth_agent.inspection.time.sleep", delays.append)
+    monkeypatch.setattr("prior_auth_agent.agent.inspection.time.sleep", delays.append)
     planner = RecordedPlanner(TransportProblem(True, 3))
     assert run_loop(StationaryBrowser(), planner, tmp_path).issue.code == "model_unavailable"
     assert planner.calls == 3
@@ -118,7 +118,7 @@ def test_retries_are_bounded_logged_and_honor_retry_after(tmp_path: Path, monkey
 
 
 def test_failed_attempts_count_against_total_model_budget(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("prior_auth_agent.inspection.time.sleep", lambda _: None)
+    monkeypatch.setattr("prior_auth_agent.agent.inspection.time.sleep", lambda _: None)
     planner = RecordedPlanner(TransportProblem(True))
     assert run_loop(StationaryBrowser(), planner, tmp_path, max_model_calls=2).issue.code == "model_budget"
     assert planner.calls == 2

@@ -10,9 +10,9 @@ from pydantic import Field, ValidationError, model_validator
 
 from prior_auth_agent.contracts import Clinical, Coverage, Medication, Patient, PatientRecord, Prescriber, StrictModel
 from prior_auth_agent.errors import InputProblem, Issue
-from prior_auth_agent.jsonio import load_object
+from prior_auth_agent.storage.jsonio import load_object
 
-DEFAULT_BROWSER_SETTINGS = Path(str(files("prior_auth_agent").joinpath("browser_settings.json")))
+DEFAULT_BROWSER_SETTINGS = Path(str(files("prior_auth_agent.config").joinpath("browser.json")))
 
 
 def stop(code: str, problem: str, action: str, field: str = "portal.workflow") -> InputProblem:
