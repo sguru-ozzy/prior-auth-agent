@@ -143,6 +143,14 @@ def portal(requests: list[ExistingRequest], scenario: str = "") -> Iterator[tupl
                     "<dt>" + html.escape(label) + "</dt><dd>" + html.escape(value) + "</dd>"
                     for label, value in values.items()
                 )
+                detail_script = ""
+                if scenario == "slow-details":
+                    detail_script = (
+                        "<script>setTimeout(()=>document.querySelector('dl').innerHTML="
+                        + json.dumps(terms)
+                        + ",300)</script>"
+                    )
+                    terms = ""
                 self.page(
                     "<main><h1>"
                     + item.key
@@ -153,6 +161,7 @@ def portal(requests: list[ExistingRequest], scenario: str = "") -> Iterator[tupl
                     + "</dl><p>"
                     + html.escape(item.receipt)
                     + "</p></main>"
+                    + detail_script
                 )
             else:
                 self.page(
@@ -216,6 +225,13 @@ def test_partial_or_filtered_history_never_becomes_a_clear_check(
     with portal([existing(record), existing(record, "REQ-2")], scenario) as (url, writes, _):
         with pytest.raises(InputProblem):
             read_history(url, record, tmp_path)
+        assert writes == ["/signin", "/signin/password"]
+
+
+def test_slow_details_are_awaited_before_duplicate_decision(tmp_path: Path, record: dict[str, JsonValue]) -> None:
+    with portal([existing(record)], "slow-details") as (url, writes, _):
+        result = read_history(url, record, tmp_path)
+        assert result.complete and result.requests[0].state == "open"
         assert writes == ["/signin", "/signin/password"]
 
 

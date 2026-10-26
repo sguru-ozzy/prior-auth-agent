@@ -4,7 +4,8 @@ import re
 import time
 from urllib.parse import urljoin
 
-from playwright.sync_api import expect
+from playwright.sync_api import Locator, expect
+from playwright.sync_api import TimeoutError as BrowserTimeout
 from pydantic import JsonValue
 
 from prior_auth_agent.agent.proposals import digest, normalize
@@ -33,6 +34,10 @@ class RequestHistoryReader:
         self.rules = rules
         self.log = log
         self.summary_pattern = re.compile(rules.summary_pattern)
+        self.throttle_pattern = re.compile(rules.throttle_pattern)
+        self.read_error_pattern = re.compile(
+            "(?:" + rules.read_error_pattern + ")|(?:" + re.sub(r"\(\?P<[^>]+>", "(", rules.throttle_pattern) + ")"
+        )
         # Playwright runs regexes in JavaScript, which does not accept Python's named-group syntax.
         self.summary_text_pattern = re.compile(re.sub(r"\(\?P<[^>]+>", "(", rules.summary_pattern))
 
@@ -40,10 +45,44 @@ class RequestHistoryReader:
         if self.log is not None:
             self.log.event(name, observation=observation, attempt=attempt)
 
+    def _wait_read(self, expected: Locator) -> None:
+        error = self.page.get_by_role("alert").filter(has_text=self.read_error_pattern)
+        for attempt in range(self.rules.max_read_retries + 1):
+            expected.or_(error).first.wait_for(timeout=self.browser.read_timeout())
+            if error.count() == 0 and expected.count() and expected.first.is_visible():
+                return
+            if error.count() != 1 or not error.is_visible() or attempt == self.rules.max_read_retries:
+                break
+            throttle = self.throttle_pattern.fullmatch(error.inner_text().strip())
+            label = self.rules.throttle_retry_button if throttle else self.rules.read_retry_button
+            button = self.page.get_by_role("button", name=label, exact=True)
+            if button.count() != 1 or not button.is_visible():
+                break
+            # This reader has no Create/Send grants; recovery can only issue trusted reads.
+            self.browser.observe()
+            headers = (
+                {"retry-after": throttle.group("seconds")}
+                if throttle
+                else self.browser.read_error_headers.pop(self.rules.read_endpoint, {})
+            )
+            self.browser.reads.pause(attempt, headers, "ui_throttled" if throttle else "ui_read_error")
+            self._event("history_read_retry", attempt=attempt + 1)
+            # The countdown may refresh the page automatically while we honor its delay.
+            if button.count() == 1 and button.is_visible():
+                button.click(timeout=self.browser.timeout())
+        raise history_problem("A required portal view could not be loaded within its bounded read retry limit.")
+
+    def _wait_page(self, expected_first: int | None = None) -> None:
+        summary = self.page.get_by_text(self.summary_text_pattern)
+        if expected_first is not None:
+            summary = summary.filter(has_text=re.compile(r"^Showing\s+" + str(expected_first) + r"[–-]"))
+        self._wait_read(summary)
+
     def _summary(self) -> tuple[int, int, int]:
+        self._wait_page()
         summary = self.page.get_by_text(self.summary_text_pattern)
         if summary.count() != 1:
-            summary.first.wait_for(timeout=self.browser.timeout())
+            summary.first.wait_for(timeout=self.browser.read_timeout())
         if summary.count() != 1:
             raise history_problem("The request count or pagination summary is ambiguous.")
         match = self.summary_pattern.fullmatch(summary.inner_text().strip())
@@ -53,9 +92,21 @@ class RequestHistoryReader:
 
     def _term(self, label: str) -> str:
         term = self.page.locator("main dt").filter(has_text=re.compile("^" + re.escape(label) + "$"))
+        if term.count() <= 1:
+            try:
+                self._wait_read(term)
+            except BrowserTimeout:
+                self.browser.observe()
+                raise history_problem(f"The request detail field {label!r} did not become available.") from None
         if term.count() != 1 or not term.is_visible():
             raise history_problem("A required request-detail field is missing or ambiguous.")
         value = term.locator("xpath=following-sibling::dd[1]")
+        if value.count() <= 1:
+            try:
+                self._wait_read(value)
+            except BrowserTimeout:
+                self.browser.observe()
+                raise history_problem(f"The request detail value for {label!r} did not become available.") from None
         if value.count() != 1 or not value.is_visible():
             raise history_problem("A required request-detail value could not be verified.")
         return value.inner_text().strip()
@@ -66,28 +117,31 @@ class RequestHistoryReader:
         if navigation.count() != 1:
             raise history_problem("The reviewed request-history navigation is unavailable.")
         self._event("history_navigation_requested")
-        navigation.click(timeout=self.browser.timeout())
-        self.page.get_by_role("heading", name=self.rules.heading, exact=True).wait_for(timeout=self.browser.timeout())
+        navigation.click(timeout=self.browser.read_timeout())
+        self.page.get_by_role("heading", name=self.rules.heading, exact=True).wait_for(
+            timeout=self.browser.read_timeout()
+        )
         clear = self.page.get_by_role("button", name=self.rules.clear_filters, exact=True)
         if clear.count() != 1:
             raise history_problem("Request filters cannot be cleared safely.")
         self._event("history_filter_reset_requested")
-        clear.click(timeout=self.browser.timeout())
+        clear.click(timeout=self.browser.read_timeout())
         for label in self.rules.filter_labels:
             field = self.page.get_by_label(label, exact=True)
             if field.count() != 1:
                 raise history_problem("A reviewed request filter is missing or ambiguous.")
-            expect(field).to_have_value("", timeout=self.browser.timeout())
+            expect(field).to_have_value("", timeout=self.browser.read_timeout())
         for status in self.rules.open_statuses + self.rules.closed_statuses:
             button = self.page.get_by_role("button", name=status, exact=True)
             if button.count() != 1 or button.get_attribute("aria-pressed") != "false":
                 raise history_problem("The request-status filters are not verifiably clear.")
 
         self._event("history_filters_verified")
+        self._wait_page()
         table = self.page.get_by_role("table")
         if table.count() != 1:
             raise history_problem("The request-history table is missing or ambiguous.")
-        self.page.get_by_text(self.summary_text_pattern).wait_for(timeout=self.browser.timeout())
+        self.page.get_by_text(self.summary_text_pattern).wait_for(timeout=self.browser.read_timeout())
         headers = [normalize(text) for text in table.locator("thead th").all_text_contents()]
         indexes = {}
         for field, heading in self.rules.columns.items():
@@ -114,7 +168,7 @@ class RequestHistoryReader:
                 break
             page_keys = []
             rows = table.locator("tbody tr")
-            expect(rows).to_have_count(last - first + 1, timeout=self.browser.timeout())
+            expect(rows).to_have_count(last - first + 1, timeout=self.browser.read_timeout())
             for row in rows.all():
                 cells = row.locator("td")
                 if cells.count() < len(headers):
@@ -145,12 +199,9 @@ class RequestHistoryReader:
             if next_page.count() != 1 or not next_page.is_enabled():
                 raise history_problem("The remaining request pages cannot be inspected.")
             self._event("history_next_page_requested", attempt=page_index + 2)
-            next_page.click(timeout=self.browser.timeout())
+            next_page.click(timeout=self.browser.read_timeout())
             expected_first = last + 1
-            expected_summary = re.compile(r"^Showing\s+" + str(expected_first) + r"[–-]")
-            expect(self.page.get_by_text(self.summary_text_pattern)).to_have_text(
-                expected_summary, timeout=self.browser.timeout()
-            )
+            self._wait_page(expected_first)
         else:
             raise history_problem("The request history exceeds the reviewed page limit.")
         if len(seen) != total_expected:
@@ -159,10 +210,8 @@ class RequestHistoryReader:
         matches = []
         for key, url, list_status in candidates:
             self._event("history_request_read_requested", observation=digest(key))
-            self.page.goto(url, wait_until="domcontentloaded", timeout=self.browser.timeout())
-            self.page.get_by_role("heading", name=re.compile("^" + re.escape(key) + r"\b")).wait_for(
-                timeout=self.browser.timeout()
-            )
+            self.page.goto(url, wait_until="domcontentloaded", timeout=self.browser.read_timeout())
+            self._wait_read(self.page.get_by_role("heading", name=re.compile("^" + re.escape(key) + r"\b")))
             fields = self.rules.detail_fields
             member = self._term(fields["member_id"])
             if member != get_fact(facts, "patient.member_id"):

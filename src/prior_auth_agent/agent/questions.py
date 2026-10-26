@@ -33,6 +33,9 @@ class WorkflowSettings(StrictModel):
     validation_fields: dict[str, str]
     new_patient_fields: dict[str, str]
     state_option_pattern: str
+    patient_search_query_key: str = Field(min_length=1)
+    label_aliases: dict[str, list[str]] = Field(default_factory=dict)
+    field_aliases: dict[str, list[str]] = Field(default_factory=dict)
     question_rules: list[QuestionRule]
     boolean_answers: dict[str, str]
     sex_labels: dict[str, str]

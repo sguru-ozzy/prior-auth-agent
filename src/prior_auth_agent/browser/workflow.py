@@ -1,11 +1,13 @@
 """Portal A's reviewed browser adapter; task decisions remain source-bound and guarded."""
 
 import re
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
-from playwright.sync_api import Locator, expect
+from playwright.sync_api import Error as BrowserError
+from playwright.sync_api import Locator, Page, expect
 from pydantic import JsonValue
 
+from prior_auth_agent.agent.matching import name_pattern
 from prior_auth_agent.agent.proposals import digest, normalize, stop
 from prior_auth_agent.agent.questions import AnswerPlan, WorkflowSettings, plan_answers
 from prior_auth_agent.agent.recovery import History, RecoveryGuard
@@ -50,28 +52,40 @@ class RequestWorkflow:
             )
         return path
 
-    def read(self, name: str) -> dict[str, JsonValue]:
+    def label(self, key: str) -> re.Pattern[str]:
+        return name_pattern(self.settings.labels[key], self.settings.label_aliases.get(key))
+
+    def field_name(self, field: str, primary: str) -> re.Pattern[str]:
+        return name_pattern(primary, self.settings.field_aliases.get(field))
+
+    def text_control(self, scope: Page | Locator, name: re.Pattern[str]) -> Locator:
+        inputs = scope.locator(
+            "input:not([type]),input[type=text],input[type=search],input[type=date],"
+            "input[type=number],input[type=email],input[type=tel],textarea"
+        )
+        return inputs.and_(scope.get_by_label(name, exact=True))
+
+    def read(self, name: str, params: dict[str, str] | None = None) -> dict[str, JsonValue]:
         url = self.base + self.path(name)
-        for attempt in range(3):
-            response = self.page.request.get(url, timeout=self.browser.timeout())
-            if response.status in (429, 502, 503, 504) and attempt < 2:
-                self.log.event("portal_read_retry", attempt=attempt + 1)
-                self.page.wait_for_timeout(min(1000 * (attempt + 1), self.browser.timeout()))
-                continue
+        response = self.browser.reads.run(
+            lambda timeout: self.page.request.get(url, params=params, timeout=timeout, max_redirects=0)
+        )
+        try:
             if not response.ok:
                 raise stop(
                     "portal_read_rejected",
-                    "A required portal read was rejected.",
+                    "A required portal read was rejected after bounded retries.",
                     "Review portal availability and the request state.",
                     "portal.access",
                 )
             try:
                 document = response.json()
             except ValueError:
-                break
+                document = None
             if isinstance(document, dict):
                 return document
-            break
+        finally:
+            response.dispose()
         raise stop(
             "portal_contract_unknown",
             "The portal returned an unsupported response.",
@@ -137,9 +151,7 @@ class RequestWorkflow:
         return value
 
     def dismiss_cookie(self) -> None:
-        button = self.page.get_by_role("button", name=self.settings.labels["cookie_dismiss"], exact=True)
-        if button.count() == 1 and button.is_visible():
-            self.click(button, "portal.cookie_notice")
+        self.browser.observe()
 
     def history(self) -> History:
         return RequestHistoryReader(self.browser, self.guard.settings.history, self.log).read(
@@ -150,8 +162,8 @@ class RequestWorkflow:
         self.dismiss_cookie()
         self.guard.before_create(self.history())
         self.browser.guard.permit_write(self.base, "PUT", self.path("wizard"), self.settings.max_wizard_writes)
-        self.click(self.page.get_by_role("link", name=self.settings.labels["new_request"], exact=True), "portal.intake")
-        self.page.get_by_role("heading", name=self.settings.labels["new_request"], exact=True).wait_for(
+        self.click(self.page.get_by_role("link", name=self.label("new_request"), exact=True), "portal.intake")
+        self.page.get_by_role("heading", name=self.label("new_request"), exact=True).wait_for(
             timeout=self.browser.timeout()
         )
         self.dismiss_cookie()
@@ -164,23 +176,81 @@ class RequestWorkflow:
                 "portal.request",
             )
 
+    def search(self, control: Locator, query: str, field: str, path_name: str, query_key: str = "q") -> None:
+        retry = self.browser.settings.read_retry
+        for attempt in range(retry.attempts):
+            try:
+                with self.page.expect_response(
+                    lambda result: (
+                        result.request.method == "GET"
+                        and origin(result.url) == origin(self.base)
+                        and urlsplit(result.url).path == self.path(path_name)
+                        and parse_qs(urlsplit(result.url).query).get(query_key) == [query]
+                    ),
+                    timeout=self.browser.read_timeout(),
+                ) as current:
+                    self.fill(control, query, field)
+                result = current.value
+                if result.ok:
+                    return
+                if result.status not in retry.statuses or attempt == retry.attempts - 1:
+                    break
+                self.browser.reads.pause(attempt, result.headers, str(result.status))
+            except BrowserError:
+                self.browser.observe()
+                if attempt == retry.attempts - 1:
+                    break
+                self.browser.reads.pause(attempt, {}, "transport_error")
+        raise stop(
+            "search_unavailable",
+            "The current search failed after bounded read retries.",
+            "Review portal availability; do not use an old search result.",
+            field,
+        )
+
     def select_patient(self) -> None:
-        search = self.page.get_by_role("combobox", name=self.settings.labels["patient_search"], exact=True)
-        self.fill(search, self.fact("patient.member_id"), "patient.member_id")
-        region = self.page.get_by_role("region", name=self.settings.labels["patient_region"], exact=True)
+        search = self.text_control(self.page, self.label("patient_search"))
+        query = self.fact("patient.member_id")
+        self.search(search, query, "patient.member_id", "patient_search", self.settings.patient_search_query_key)
+        response = self.read("patient_search", {self.settings.patient_search_query_key: query})
+        results = response.get("results")
+        if (
+            response.get("query") != query
+            or not isinstance(results, list)
+            or not all(isinstance(row, dict) for row in results)
+        ):
+            raise stop(
+                "patient_search_unverified",
+                "Patient search results cannot be tied to the current query.",
+                "Review the current patient search; do not enter or select a patient from stale results.",
+                "patient.member_id",
+            )
+        self.log.event("patient_search_verified", observation=digest({"query": query, "results": results}))
+        region = self.page.get_by_role("region", name=self.label("patient_region"), exact=True)
         options = region.get_by_role("listbox", name="Patients", exact=True).get_by_role("option")
-        empty = region.get_by_text(self.settings.labels["patient_no_matches"], exact=True)
-        options.or_(empty).first.wait_for(timeout=self.browser.timeout())
-        if options.count() == 0 and any(item.is_visible() for item in empty.all()):
+        if len(results) == 0:
             self.enter_patient(region)
             return
-        if options.count() != 1:
+        if len(results) != 1:
             raise stop(
                 "patient_match_ambiguous",
-                "The patient search does not have one exact match.",
+                "The current patient search does not have one exact match.",
                 "Identify the correct patient manually.",
                 "patient.member_id",
             )
+        candidate = results[0]
+        for key in ("first_name", "last_name", "date_of_birth", "member_id", "state", "zip_code", "gender"):
+            field = "patient.sex" if key == "gender" else "patient." + key
+            expected = self.settings.sex_labels.get(self.fact(field)) if key == "gender" else self.fact(field)
+            if candidate.get(key) != expected:
+                raise stop(
+                    "patient_match_mismatch",
+                    "The current search result differs from a supplied patient fact.",
+                    "Review the patient identity without changing the source record.",
+                    field,
+                )
+        options.first.wait_for(timeout=self.browser.timeout())
+        expect(options).to_have_count(1, timeout=self.browser.timeout())
         text = normalize(options.inner_text())
         for field in (
             "patient.first_name",
@@ -201,14 +271,14 @@ class RequestWorkflow:
 
     def enter_patient(self, region: Locator) -> None:
         self.click(
-            region.get_by_role("button", name=self.settings.labels["new_patient"], exact=True),
+            region.get_by_role("button", name=self.label("new_patient"), exact=True),
             "portal.new_patient",
         )
         for field, label in self.settings.new_patient_fields.items():
-            self.fill(region.get_by_label(label, exact=True), self.fact(field), field)
+            self.fill(self.text_control(region, self.field_name(field, label)), self.fact(field), field)
         for label, field, value in (
-            (self.settings.labels["gender"], "patient.sex", self.settings.sex_labels.get(self.fact("patient.sex"))),
-            (self.settings.labels["state"], "patient.state", self.fact("patient.state")),
+            (self.label("gender"), "patient.sex", self.settings.sex_labels.get(self.fact("patient.sex"))),
+            (self.label("state"), "patient.state", self.fact("patient.state")),
         ):
             if not value:
                 raise stop(
@@ -217,17 +287,40 @@ class RequestWorkflow:
                     "Review this patient field without changing the source record.",
                     field,
                 )
-            control = region.get_by_role("button", name=label, exact=True)
-            self.click(control, field)
             option_name = (
                 re.compile(self.settings.state_option_pattern.format(value=re.escape(value)))
                 if field == "patient.state"
-                else value
+                else name_pattern(value)
             )
-            option = self.page.get_by_role("option", name=option_name, exact=True)
-            self.page.get_by_role("option").first.wait_for(timeout=self.browser.timeout())
-            self.click(option, field)
-            expect(control).to_contain_text(value, timeout=self.browser.timeout())
+            control = region.get_by_label(label, exact=True)
+            if control.count() == 1 and control.evaluate("e => e.tagName") == "SELECT":
+                option = control.locator("option").filter(has_text=option_name)
+                self.one(control, field)
+                if option.count() != 1 or not option.is_enabled():
+                    raise stop(
+                        "patient_value_unsupported",
+                        "The supplied patient value has no unique enabled option.",
+                        "Review this patient field manually.",
+                        field,
+                    )
+                selected = option.evaluate("e => e.value")
+                if not isinstance(selected, str) or not selected:
+                    raise stop(
+                        "patient_value_unsupported",
+                        "The portal option has no selectable value.",
+                        "Review the patient field manually.",
+                        field,
+                    )
+                self.browser.observe()
+                control.select_option(selected, timeout=self.browser.timeout())
+                expect(control).to_have_value(selected, timeout=self.browser.timeout())
+                self.log.event("workflow_action_verified", binding=field, action="select")
+            else:
+                control = region.get_by_role("button", name=label, exact=True)
+                self.click(control, field)
+                self.page.get_by_role("option").first.wait_for(timeout=self.browser.timeout())
+                self.click(self.page.get_by_role("option", name=option_name, exact=True), field)
+                expect(control).to_contain_text(value, timeout=self.browser.timeout())
         self.verify_selected_patient()
         self.log.event("new_patient_verified")
 
@@ -265,9 +358,9 @@ class RequestWorkflow:
         self.log.event("intake_patient_verified")
 
     def select_product(self) -> None:
-        search = self.page.get_by_role("combobox", name=self.settings.labels["medication_search"], exact=True)
-        self.fill(search, self.fact("medication.name"), "medication.name")
-        region = self.page.get_by_role("region", name=self.settings.labels["medication_region"], exact=True)
+        search = self.text_control(self.page, self.label("medication_search"))
+        self.search(search, self.fact("medication.name"), "medication.name", "medication_search")
+        region = self.page.get_by_role("region", name=self.label("medication_region"), exact=True)
         # This portal may select a unique result itself. Otherwise inspect every visible option.
         self.page.wait_for_function(
             """() => [...document.querySelectorAll('[role=option],main strong')].some(e=>e.getClientRects().length)""",
@@ -305,10 +398,8 @@ class RequestWorkflow:
 
     def select_plan(self) -> None:
         for label, field in (("BIN", "coverage.bin"), ("PCN", "coverage.pcn"), ("Group", "coverage.group")):
-            self.fill(self.page.get_by_label(label, exact=True), self.fact(field), field)
-        self.click(
-            self.page.get_by_role("button", name=self.settings.labels["find_forms"], exact=True), "portal.plan_search"
-        )
+            self.fill(self.text_control(self.page, self.field_name(field, label)), self.fact(field), field)
+        self.click(self.page.get_by_role("button", name=self.label("find_forms"), exact=True), "portal.plan_search")
         self.page.get_by_role("radiogroup", name="Forms", exact=True).wait_for(timeout=self.browser.timeout())
         draft = self.read("wizard").get("draft")
         found = draft.get("found") if isinstance(draft, dict) else None
@@ -373,7 +464,7 @@ class RequestWorkflow:
         self.verify_selected_patient()
         self.browser.observe()
         self.write(
-            self.page.get_by_role("button", name=self.settings.labels["create"], exact=True),
+            self.page.get_by_role("button", name=self.label("create"), exact=True),
             "portal.create",
             "create",
             ("POST",),
@@ -465,7 +556,7 @@ class RequestWorkflow:
         return plan_answers(questions, self.facts, self.settings)
 
     def answer_questions(self) -> AnswerPlan:
-        self.click(self.page.get_by_role("tab", name=self.settings.labels["questions"], exact=True), "portal.questions")
+        self.click(self.page.get_by_role("tab", name=self.label("questions"), exact=True), "portal.questions")
         plan = self.question_plan()
         for question in plan.questions:
             answer = plan.answers[question.id]
@@ -486,7 +577,7 @@ class RequestWorkflow:
                     self.click(group.get_by_text(answer, exact=True), "portal.questions")
                     expect(control).to_be_checked(timeout=self.browser.timeout())
             else:
-                control = self.page.get_by_role("textbox", name=question.text, exact=True)
+                control = self.text_control(self.page, name_pattern(question.text))
                 control.wait_for(timeout=self.browser.timeout())
                 self.fill(
                     control,
@@ -497,7 +588,7 @@ class RequestWorkflow:
                 )
             self.log.event("question_answer_verified", observation=digest(question.text))
         self.write(
-            self.page.get_by_role("button", name=self.settings.labels["save"], exact=True),
+            self.page.get_by_role("button", name=self.label("save"), exact=True),
             "portal.save_answers",
             "answers",
             ("PUT", "POST"),
@@ -573,7 +664,7 @@ class RequestWorkflow:
             has=self.page.get_by_role("textbox", name=re.compile("name", re.I))
         )
         dialog.wait_for(timeout=self.browser.timeout())
-        warning = dialog.get_by_text(self.settings.labels["missing_questions"], exact=True)
+        warning = dialog.get_by_text(self.label("missing_questions"), exact=True)
         if warning.count() == 1 and warning.is_visible():
             questions = warning.locator("xpath=..").get_by_role("listitem").all_inner_texts()
             raise stop(

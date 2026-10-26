@@ -9,13 +9,14 @@ const patient=PATIENT, drug=DRUG, plan=PLAN, form=FORM;
 let draft={};const noPatient=NO_PATIENT,ambiguous=AMBIGUOUS_PATIENT;
 async function save(){await fetch('/api/wizard',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(draft)});}
 function reset(){draft={};save();}
-function patientOptions(){if(noPatient){document.getElementById('patients').innerHTML='<p>No matches</p>';return;}document.getElementById('patients').innerHTML='<div role="listbox" aria-label="Patients"><button role="option" onclick="selectPatient()">'+patient.last_name+', '+patient.first_name+' DOB '+patient.date_of_birth+' · '+patient.member_id+' · '+patient.state+'</button></div>';if(ambiguous){const list=document.getElementById('patients').querySelector('[role=listbox]');list.appendChild(list.firstElementChild.cloneNode(true));}}
+async function patientOptions(){const search=document.querySelector('[role=combobox]');const query=search.value;document.getElementById('patients').innerHTML='<p>No matches</p>';const response=await fetch('/api/patients?q='+encodeURIComponent(query));if(!response.ok)return;const data=await response.json();if(search.value!==data.query)return;if(!data.results.length){document.getElementById('patients').innerHTML='<p>No matches</p>';return;}document.getElementById('patients').innerHTML='<div role="listbox" aria-label="Patients">'+data.results.map(p=>'<button role="option" onclick="selectPatient()">'+p.last_name+', '+p.first_name+' DOB '+p.date_of_birth+' · '+p.member_id+' · '+p.state+'</button>').join('')+'</div>';}
+
 function selectPatient(){draft.patient=patient;document.getElementById('patients').innerHTML='<strong>Selected patient</strong>';save();}
 function newPatient(){draft={patient_mode:'new',new_patient:{}};document.getElementById('patients').innerHTML=NEW_PATIENT_CONTROLS;save();}
 function patientValue(key,value){draft.new_patient[key]=value;save();}
 function patientOptionsFor(key){const choices=key==='gender'?['Female','Male','Unknown']:['OH','PA'];document.getElementById('patient-options').innerHTML=choices.map(value=>'<button role="option" onclick="pickPatientOption(\''+key+'\',\''+value+'\')">'+(key==='state'?value+' · State name':value)+'</button>').join('');}
 function pickPatientOption(key,value){patientValue(key,value);document.getElementById(key).textContent=value;document.getElementById('patient-options').innerHTML='';}
-function product(){draft.drug=drug;document.getElementById('product').innerHTML='<strong>'+drug.label+'</strong><span>'+drug.package+'</span>';save();}
+async function product(){const q=document.querySelector('input[oninput="product()"]').value;const r=await fetch('/api/drugs?q='+encodeURIComponent(q));if(!r.ok)return;draft.drug=drug;document.getElementById('product').innerHTML='<strong>'+drug.label+'</strong><span>'+drug.package+'</span>';save();}
 async function findForms(){draft.found={plans:[plan],forms:[form]};await save();document.getElementById('forms').innerHTML='<div role="radiogroup" aria-label="Forms"><label><input type="radio" onchange="selectForm()">'+form.title+' '+plan.name+' Electronic</label></div>';}
 function selectForm(){draft.form=form;save();}
 async function create(){const r=await fetch('/api/requests',{method:'POST'});if(r.ok)location.href='/requests/REQ-TEST';}

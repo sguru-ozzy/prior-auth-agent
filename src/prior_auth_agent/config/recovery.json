@@ -48,6 +48,12 @@
     "submitted_statuses": [
       "Sent to plan"
     ],
-    "receipt_pattern": "\\bQMS-[A-Za-z0-9-]+\\b"
+    "receipt_pattern": "\\bQMS-[A-Za-z0-9-]+\\b",
+    "read_retry_button": "Try again",
+    "read_endpoint": "/api/requests",
+    "read_error_pattern": "^The list could not be loaded \\((?:no answer|429|502|503|504)\\)\\.$",
+    "max_read_retries": 2,
+    "throttle_pattern": "^Too many requests\\.\\s*Quillmere is limiting how fast this account can load pages\\.\\s*The rest of this page loads in (?P<seconds>\\d+) seconds?\\.\\s*Try again now$",
+    "throttle_retry_button": "Try again now"
   }
 }

@@ -4,10 +4,14 @@ import time
 from importlib.resources import files
 from urllib.parse import urlsplit
 
-from playwright.sync_api import BrowserContext, Dialog, Locator, Page, Request, Route, expect, sync_playwright
+from playwright.sync_api import BrowserContext, Dialog, Locator, Page, Request, Response, Route, expect, sync_playwright
+from playwright.sync_api import Error as BrowserError
+from playwright.sync_api import TimeoutError as BrowserTimeout
 
 from prior_auth_agent.agent.proposals import Binding, BrowserSettings, Control, Observation, digest, normalize, stop
+from prior_auth_agent.browser.reads import ReadRetrier
 from prior_auth_agent.contracts import Credentials
+from prior_auth_agent.storage.audit import ActionLog
 from prior_auth_agent.validation import validate_url
 
 OBSERVE_SCRIPT = files("prior_auth_agent.browser").joinpath("observe.js").read_text(encoding="utf-8")
@@ -64,10 +68,21 @@ class NetworkGuard:
 
 
 class PortalBrowser:
-    def __init__(self, start_url: str, auth_origins: list[str], settings: BrowserSettings, deadline: float) -> None:
+    def __init__(
+        self,
+        start_url: str,
+        auth_origins: list[str],
+        settings: BrowserSettings,
+        deadline: float,
+        log: ActionLog | None = None,
+    ) -> None:
         self.start_url = start_url
         self.settings = settings
         self.deadline = deadline
+        self.log = log
+        self.overlay_dismissals = 0
+        self.read_error_headers: dict[str, dict[str, str]] = {}
+        self.reads = ReadRetrier(settings.read_retry, deadline, settings.wait_ms, log)
         self.guard = NetworkGuard(
             {origin(start_url), *(origin(url) for url in auth_origins)}, settings.authentication_paths
         )
@@ -83,6 +98,12 @@ class PortalBrowser:
             )
         return min(self.settings.wait_ms, remaining * 1000)
 
+    def read_timeout(self) -> float:
+        self.timeout()
+        retry = self.settings.read_retry
+        budget = self.settings.wait_ms * retry.attempts + retry.max_retry_after_ms * (retry.attempts - 1)
+        return min(budget, max(1, (self.deadline - time.monotonic()) * 1000))
+
     def __enter__(self) -> "PortalBrowser":
         self.playwright = sync_playwright().start()
         try:
@@ -92,8 +113,9 @@ class PortalBrowser:
             self.context.route_web_socket("**/*", lambda socket: socket.close())
             self.page: Page = self.context.new_page()
             self.page.on("dialog", self._dialog)
+            self.page.on("response", self._read_response)
             self.context.on("page", self._popup)
-            self.page.goto(self.start_url, wait_until="domcontentloaded", timeout=self.timeout())
+            self.page.goto(self.start_url, wait_until="domcontentloaded", timeout=self.read_timeout())
             self.page.wait_for_function(
                 """headings => [...document.querySelectorAll('h1,h2,h3,[role=heading]')].some(
                     e => headings.includes(e.textContent.trim()) && e.getClientRects().length
@@ -108,6 +130,11 @@ class PortalBrowser:
             self.__exit__(None, None, None)
             raise
 
+    def _read_response(self, response: Response) -> None:
+        if response.request.method == "GET" and response.status in self.settings.read_retry.statuses:
+            retry_after = response.headers.get("retry-after", "")
+            self.read_error_headers[urlsplit(response.url).path] = {"retry-after": retry_after} if retry_after else {}
+
     def _dialog(self, dialog: Dialog) -> None:
         # Unknown dialogs cannot authorize an attestation or other action.
         self.unexpected_surface = True
@@ -119,10 +146,57 @@ class PortalBrowser:
 
     def __exit__(self, *args: object) -> None:
         try:
+            if hasattr(self, "context"):
+                try:
+                    self.context.set_offline(True)
+                    self.context.unroute_all(behavior="ignoreErrors")
+                except BrowserError:
+                    pass
             if hasattr(self, "browser"):
                 self.browser.close()
         finally:
             self.playwright.stop()
+
+    def dismiss_known_overlays(self) -> None:
+        for rule in self.settings.known_overlays:
+            while True:
+                button = self.page.get_by_role("button", name=rule.dismiss, exact=True)
+                if button.count() != 1 or not button.is_visible():
+                    break
+                containers = self.page.locator("div,section,aside").filter(has=button)
+                matches = [
+                    container
+                    for container in containers.all()
+                    if container.is_visible()
+                    and not container.locator("input,select,textarea,form").count()
+                    and normalize(
+                        container.evaluate(
+                            """e => {const nodes=document.createTreeWalker(e,NodeFilter.SHOW_TEXT);const parts=[];
+                               while(nodes.nextNode()){const n=nodes.currentNode;
+                               if(n.parentElement && n.parentElement.getClientRects().length)parts.push(n.textContent);}
+                               return parts.join(' ');}"""
+                        )
+                    )
+                    == normalize(rule.text)
+                ]
+                if not matches:
+                    break
+                if self.overlay_dismissals >= self.settings.max_overlay_dismissals:
+                    raise stop(
+                        "overlay_limit",
+                        "A known portal overlay keeps recurring.",
+                        "Resolve the recurring overlay manually.",
+                        "portal.access",
+                    )
+                button.click(timeout=self.timeout())
+                self.overlay_dismissals += 1
+                if self.log is not None:
+                    self.log.event("known_overlay_dismissed", binding=rule.id, attempt=self.overlay_dismissals)
+                try:
+                    button.wait_for(state="hidden", timeout=min(300, self.timeout()))
+                except BrowserTimeout:
+                    continue
+                break
 
     def observe(self) -> Observation:
         self.timeout()
@@ -147,6 +221,7 @@ class PortalBrowser:
                 "Review the sign-in origin before continuing.",
                 "portal.access",
             )
+        self.dismiss_known_overlays()
         raw = self.page.evaluate(OBSERVE_SCRIPT)
         controls = [Control.model_validate(control) for control in raw]
         authenticated = any(
