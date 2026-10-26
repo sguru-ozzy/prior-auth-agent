@@ -887,3 +887,23 @@ def test_query_echo_comparison_uses_only_the_reviewed_format(tmp_path: Path, rec
         result = json.loads((tmp_path / "result.json").read_text())
         assert result["status"] == "ESCALATED" and result["escalation"]["field"] == "patient.member_id"
         assert state["creates"] == state["sends"] == 0
+
+
+def test_open_request_is_blocked_for_a_client_without_local_state(
+    tmp_path: Path, record: dict[str, JsonValue], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with portal(record) as (url, state):
+        args = arguments(tmp_path, record, url)
+        assert main(args) == 0
+        assert json.loads((tmp_path / "result.json").read_text())["status"] == "SUCCESS"
+        original = Path(os.environ["XDG_STATE_HOME"])
+        journals = {path: path.read_bytes() for path in original.rglob("*.json")}
+        monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "independent-client"))
+        assert main(args) == 0
+        result = json.loads((tmp_path / "result.json").read_text())
+        assert result["status"] == "ESCALATED" and result["escalation"]["field"] == "portal.request"
+        assert state["creates"] == state["sends"] == 1
+        assert all(path.read_bytes() == content for path, content in journals.items())
+        events = (tmp_path / "result.actions.jsonl").read_text()
+        assert '"event": "create_intent_persisted"' not in events
+        assert '"event": "send_intent_persisted"' not in events

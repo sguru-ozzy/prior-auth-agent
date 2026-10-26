@@ -16,7 +16,8 @@ checks, counts and hashes. This oracle verifies completion and saved-round compl
 answer correctness still relies on the source-bound agent tests and reviewable private answer evidence.
 
 Fresh-environment repetitions compare exact result and action-log hashes. A separate rerun in the same environment
-must replay the completed result and leave one request and one Send. Replaying a cached result is not counted as
+must replay the completed result and leave one request and one Send. A second client without a local journal
+must also find the existing open request and escalate before Create; the original resolved journal is preserved. Replaying a cached result is not counted as
 an independent full-workflow repetition. Validation cases run the normal CLI against an unavailable loopback port
 and must reject before any browser configuration or case lock.
 
@@ -34,3 +35,7 @@ content. Field lookup now accepts exact reviewed accessible names through textbo
 while retaining label support for native date inputs. The final locator still intersects with fillable input
 and textarea elements and requires one target. A browser fixture reproduces aria-labelledby with hidden required
 markers; broad section matches remain excluded.
+
+The named duplicate scenario did not expose a matching open request for supplied P003 in the public record list.
+Its expected outcome is therefore success for that record. Duplicate safety is separately tested with an actual
+verified open request and an independent client, rather than inferred from the scenario name.

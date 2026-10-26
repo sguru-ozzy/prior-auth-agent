@@ -23,6 +23,7 @@ class Case(StrictModel):
     local_only: bool = False
     repeats: int = Field(default=1, ge=1, le=5)
     replay: bool = False
+    external_duplicate: bool = False
 
     @model_validator(mode="after")
     def check_local(self) -> "Case":

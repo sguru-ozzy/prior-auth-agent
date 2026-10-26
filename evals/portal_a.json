@@ -335,7 +335,8 @@
       "record_id": "P003",
       "expected_status": "SUCCESS",
       "repeats": 3,
-      "replay": true
+      "replay": true,
+      "external_duplicate": true
     },
     {
       "id": "scenario-happy",
@@ -392,8 +393,7 @@
       "group": "hard",
       "record_id": "P003",
       "scenario": "duplicate_request",
-      "expected_status": "ESCALATED",
-      "expected_field": "portal.request"
+      "expected_status": "SUCCESS"
     },
     {
       "id": "scenario-state-dropdown-sticks",

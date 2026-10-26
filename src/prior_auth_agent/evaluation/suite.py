@@ -26,9 +26,16 @@ def sha(path: Path) -> str:
 
 
 def invoke(
-    root: Path, directory: Path, credentials: Path, case: Case, reference_date: date, replay: bool = False
+    root: Path,
+    directory: Path,
+    credentials: Path,
+    case: Case,
+    reference_date: date,
+    replay: bool = False,
+    external: bool = False,
 ) -> tuple[RunResult, list[dict[str, JsonValue]]]:
-    output = directory / ("replay.json" if replay else "result.json")
+    name = "external" if external else "replay" if replay else "result"
+    output = directory / (name + ".json")
     url = "http://127.0.0.1:1/dashboard" if case.local_only else PORTAL_URL
     if case.scenario:
         url += "?" + urlencode({"scenario": case.scenario})
@@ -45,9 +52,9 @@ def invoke(
         "--as-of",
         reference_date.isoformat(),
         "--state-dir",
-        str(directory / "state"),
+        str(directory / ("external-state" if external else "state")),
     ]
-    capture = directory / ("replay.log" if replay else "agent.log")
+    capture = directory / (name + ".log")
     capture.touch(mode=0o600, exist_ok=False)
     with capture.open("wb") as stream:
         completed = subprocess.run(command, cwd=root, stdout=stream, stderr=subprocess.STDOUT, timeout=150)
@@ -152,7 +159,7 @@ def evaluate(arguments: argparse.Namespace) -> int:
                         assert isinstance(checks, dict)
                         checks.update(portal_checks(outcome, facts[case.id], list(after.values()), manifest.oracle))
                         record.update({"portal_checked": True, "new_requests": len(after)})
-                        if case.replay:
+                        if case.replay and outcome.status == "SUCCESS" and all(checks.values()):
                             replay_dir = directory / "replay-observer"
                             replay_dir.mkdir(mode=0o700)
                             replay_result, replay_events = invoke(
@@ -174,6 +181,31 @@ def evaluate(arguments: argparse.Namespace) -> int:
                                     ).items()
                                 }
                             )
+                        if case.external_duplicate and outcome.status == "SUCCESS" and all(checks.values()):
+                            external_dir = directory / "external-observer"
+                            external_dir.mkdir(mode=0o700)
+                            duplicate, duplicate_events = invoke(
+                                root, directory, arguments.credentials, case, manifest.reference_date, external=True
+                            )
+                            final = Observer(credentials, external_dir).snapshot(set(before) | set(after), set(after))
+                            checks["external_duplicate_escalated"] = (
+                                duplicate.status == "ESCALATED" and duplicate.escalation.field == "portal.request"
+                            )
+                            checks["external_duplicate_no_intents"] = not any(
+                                event.get("event") in ("create_intent_persisted", "send_intent_persisted")
+                                for event in duplicate_events
+                            )
+                            checks["external_duplicate_no_new_requests"] = set(final) == set(after)
+                            checks.update(
+                                {
+                                    "external_" + key: value
+                                    for key, value in portal_checks(
+                                        outcome, facts[case.id], [], manifest.oracle, list(final.values())
+                                    ).items()
+                                }
+                            )
+                        elif case.external_duplicate:
+                            checks["external_duplicate_test_available"] = False
                 record["repeat"] = repeat
                 check_values = record["checks"]
                 assert isinstance(check_values, dict)
