@@ -29,6 +29,10 @@ class ActionLog:
         status: str | None = None,
         reference_date: date | None = None,
         configuration_digest: str | None = None,
+        observation: str | None = None,
+        binding: str | None = None,
+        action: str | None = None,
+        attempt: int | None = None,
     ) -> None:
         self._sequence += 1
         event: dict[str, str | int] = {"sequence": self._sequence, "event": name}
@@ -36,6 +40,14 @@ class ActionLog:
             event["reference_date"] = reference_date.isoformat()
         if configuration_digest is not None:
             event["configuration_digest"] = configuration_digest
+        for key, value in (
+            ("observation", observation),
+            ("binding", binding),
+            ("action", action),
+            ("attempt", attempt),
+        ):
+            if value is not None:
+                event[key] = value
         if issue is not None:
             event.update(field=issue.field, code=issue.code)
         if status is not None:

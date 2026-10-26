@@ -30,6 +30,8 @@ jobs:
         run: uv python install
       - name: Install locked dependencies and package
         run: uv sync --locked --no-editable
+      - name: Install browser for isolated fixture tests
+        run: uv run --no-sync playwright install --with-deps chromium
       - name: Check lint
         run: uv run --no-sync ruff check .
       - name: Check formatting

@@ -21,7 +21,7 @@ from prior_auth_agent.contracts import (
     StrictModel,
 )
 from prior_auth_agent.errors import InputProblem, Issue
-from prior_auth_agent.jsonio import load_object
+from prior_auth_agent.storage.jsonio import load_object
 
 
 class PatternRule(StrictModel):
@@ -57,7 +57,7 @@ class Settings(StrictModel):
     required_when: list[RequiredWhen]
 
 
-DEFAULT_SETTINGS = Path(str(files("prior_auth_agent").joinpath("settings.json")))
+DEFAULT_SETTINGS = Path(str(files("prior_auth_agent.config").joinpath("validation.json")))
 # All labels come from the declared schema, never from submitted values.
 _SCHEMA_LABELS = set().union(
     *(
