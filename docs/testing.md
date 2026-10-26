@@ -144,8 +144,8 @@ XDG_STATE_HOME="$PWD/artifacts/fresh-portal-20261025-final" ./run_agent \
 
 Result: `SUCCESS`, `QMS-00001`. The log records one Create and one Send. A separate portal check confirms
 "Sent to plan" and exactly one Send. Evidence is in `artifacts/fresh-p003-final.portal.json` and
-`artifacts/fresh-p003-final.png`. All 286 isolated tests pass; the wheel and source distribution build.
-The required ten-case live hard-case report remains pending.
+`artifacts/fresh-p003-final.png`. All 307 isolated tests pass; the wheel and source distribution build.
+The [current case report](../evals/results/README.md) covers 49 cases, including all documented scenario flags.
 
 Keep one recovery directory per portal environment. This run followed a user-approved fresh practice-server
 restart; original journals were preserved. Never switch state directories to bypass pending writes in the same
@@ -194,3 +194,8 @@ the report. `clean-p003` repeats the full workflow three times from fresh enviro
 cached reruns. No API key is needed. Exit 0 means all expectations, independent checks and exact comparisons
 passed; 1 means failures or incomplete evidence; 2 means invalid setup. Review `report.json` and each run's
 private artifacts. Portal logs can include synthetic credentials; keep the artifact directory private.
+
+The [committed report](../evals/results/README.md) records 51 primary runs: 45 met expectations
+and 6 completion targets escalated. P003 also passed three cached reruns and three independent-client
+open-request checks, with one request and one Send in each environment. Its three fresh result/action logs matched
+exactly. A successful scenario flag only covers the branch used by that supplied record.

@@ -37,4 +37,4 @@ establish coverage of the unseen Portal B.
 A live throttled history scan exercised three retries across reads and stopped before exceeding the run budget,
 with no request writes. Sustained throttling or a long scan can still exceed the run or evidence-freshness budget;
 those cases escalate. Reduce required history reads before considering wider budgets, and retain complete duplicate
-checks. The required live scenario evaluation remains outstanding.
+checks. The [current evaluation](../../evals/results/README.md) records live scenario outcomes and remaining completion gaps.

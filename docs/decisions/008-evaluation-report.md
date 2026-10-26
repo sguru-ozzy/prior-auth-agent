@@ -24,7 +24,15 @@ checks and private live evidence. See the [evaluation design](../design/evaluati
 
 Evaluator tests reject wrong receipts, demographics, plan IDs, duplicate Sends, unsupported portal outcomes and
 missing answers. A CLI integration test verifies precise validation handoffs, exact repeated outcomes/logs,
-private artifact permissions and refusal to overwrite evidence. Live results are recorded after execution.
+private artifact permissions and refusal to overwrite evidence. All 307 installed-package tests, lint, formatting
+and builds pass.
+
+The [live report](../../evals/results/README.md) records 51 primary runs: 45 met expectations and
+6 completion targets escalated. All supplied clean records completed. Three fresh P003 workflows had
+identical results/actions; cached reruns and independent clients without journals added no request or Send.
+The live evaluation exposed two Portal A regressions absent from older fixtures: lowercase query echoes and
+aria-labelledby question controls whose label text differs from their accessible names. Both now have regression
+coverage; source values and saved identity checks remain exact.
 
 ## Next
 

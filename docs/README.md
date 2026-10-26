@@ -4,6 +4,8 @@ The [design document](https://docs.google.com/document/d/1S0ZwLwwnvf1CUEN2kFZnqW
 describes the overall approach. The [repository README](../README.md) covers setup and common commands;
 the [testing guide](testing.md) covers additional CLI cases.
 
+The [Portal A results](../evals/results/README.md) summarize the current verification and remaining gaps.
+
 ## Implementation designs
 
 - [Evaluation evidence](design/evaluation.md)
