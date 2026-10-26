@@ -14,6 +14,7 @@ the [testing guide](testing.md) covers additional CLI cases.
 - [PR 2: Validation and results](decisions/002-validation-and-results.md)
 - [PR 3: Guarded browser inspection](decisions/003-guarded-browser-inspection.md)
 - [PR 4: Documentation structure](decisions/004-documentation-structure.md)
+- [PR 5: Duplicate protection and recovery](decisions/005-duplicate-protection.md)
 
 Records for PRs 1–3 were written retrospectively from their merged changes and validation evidence.
 They describe those milestones; the source and configuration show current behavior.
