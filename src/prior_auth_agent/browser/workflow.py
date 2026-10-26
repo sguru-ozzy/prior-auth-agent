@@ -165,7 +165,20 @@ class RequestWorkflow:
         self.dismiss_cookie()
         self.guard.before_create(self.history())
         self.browser.guard.permit_write(self.base, "PUT", self.path("wizard"), self.settings.max_wizard_writes)
-        self.click(self.page.get_by_role("link", name=self.label("new_request"), exact=True), "portal.intake")
+        navigation = self.page.get_by_role("link", name=self.label("new_request"), exact=True)
+        if navigation.count() > 1:
+            destinations = navigation.evaluate_all("nodes => nodes.map(node => node.href)")
+            if len(set(destinations)) != 1 or origin(destinations[0]) not in self.browser.guard.origins:
+                raise stop(
+                    "workflow_target_ambiguous",
+                    "New-request links do not identify one trusted destination.",
+                    "Review the intake navigation before continuing.",
+                    "portal.intake",
+                )
+            # Sidebar and dashboard shortcuts can be equivalent. Select one only
+            # after their complete observed destinations have been proven identical.
+            navigation = navigation.first
+        self.click(navigation, "portal.intake")
         self.page.get_by_role("heading", name=self.label("new_request"), exact=True).wait_for(
             timeout=self.browser.timeout()
         )

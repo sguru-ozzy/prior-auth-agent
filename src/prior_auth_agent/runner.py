@@ -13,6 +13,7 @@ from prior_auth_agent.agent.questions import DEFAULT_WORKFLOW_SETTINGS
 from prior_auth_agent.agent.recovery import DEFAULT_RECOVERY_SETTINGS
 from prior_auth_agent.contracts import RunResult
 from prior_auth_agent.errors import InputProblem, Issue
+from prior_auth_agent.semantic.contracts import DEFAULT_SEMANTIC_SETTINGS
 from prior_auth_agent.storage.audit import ActionLog
 from prior_auth_agent.storage.journal import default_state_dir
 from prior_auth_agent.storage.jsonio import load_object, write_atomic
@@ -51,6 +52,8 @@ def run(
     execute: bool = False,
     workflow_config: Path | None = None,
     resume_request: str | None = None,
+    adapter: Literal["auto", "reviewed", "semantic"] = "auto",
+    semantic_config: Path | None = None,
 ) -> int:
     try:
         log_path = action_log_path(output)
@@ -67,6 +70,7 @@ def run(
                     browser_config or DEFAULT_BROWSER_SETTINGS,
                     recovery_config or DEFAULT_RECOVERY_SETTINGS,
                     workflow_config or DEFAULT_WORKFLOW_SETTINGS,
+                    semantic_config or DEFAULT_SEMANTIC_SETTINGS,
                     Path(__file__).resolve().parents[2] / "local" / "model.env",
                     Path(__file__).resolve().parents[2] / ".env",
                     Path.cwd() / ".env",
@@ -118,6 +122,8 @@ def run(
                     execute,
                     workflow_config,
                     resume_request,
+                    adapter,
+                    semantic_config,
                 )
                 if isinstance(outcome, RunResult):
                     result = outcome

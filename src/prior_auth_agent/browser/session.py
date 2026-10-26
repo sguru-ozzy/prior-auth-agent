@@ -33,13 +33,21 @@ class NetworkGuard:
         self.authentication_paths = authentication_paths
         self.grant: tuple[str, str] | None = None
         self.blocked = False
+        self.ui_grant: tuple[str, str | None, tuple[str, ...]] | None = None
+        self.ui_writes = 0
+        self.ui_last_request: Request | None = None
         self.writes: dict[tuple[str, str, str], int] = {}
 
     def permit_write(self, destination: str, method: str, path: str, count: int = 1) -> None:
         self.writes[(origin(destination), method, path)] = count
 
+    def permit_ui_action(self, destination: str, path: str | None = None, method: str | None = None) -> None:
+        """One same-origin mutation caused by an authorized observed UI action; never a blanket grant."""
+        self.ui_grant = (origin(destination), path, (method,) if method else ("POST", "PUT", "PATCH"))
+
     def revoke_writes(self) -> None:
         self.writes.clear()
+        self.ui_grant = None
 
     def route(self, route: Route, request: Request) -> None:
         parsed = urlsplit(request.url)
@@ -55,11 +63,23 @@ class NetworkGuard:
         )
         permission = (origin(request.url), request.method, parsed.path) if trusted else None
         workflow_write = permission is not None and self.writes.get(permission, 0) > 0 and not parsed.query
-        if workflow_write:
+        ui_write = (
+            trusted
+            and self.ui_grant is not None
+            and origin(request.url) == self.ui_grant[0]
+            and (self.ui_grant[1] is None or parsed.path == self.ui_grant[1])
+            and request.method in self.ui_grant[2]
+            and request.resource_type in ("document", "xhr", "fetch")
+        )
+        if ui_write:
+            self.ui_grant = None
+            self.ui_writes += 1
+            self.ui_last_request = request
+        if workflow_write and permission is not None:
             self.writes[permission] -= 1
         if granted:
             self.grant = None
-        if trusted and (read or granted or workflow_write):
+        if trusted and (read or granted or workflow_write or ui_write):
             route.continue_()
         else:
             if not read or request.is_navigation_request():
@@ -75,8 +95,10 @@ class PortalBrowser:
         settings: BrowserSettings,
         deadline: float,
         log: ActionLog | None = None,
+        semantic: bool = False,
     ) -> None:
         self.start_url = start_url
+        self.semantic = semantic
         self.settings = settings
         self.deadline = deadline
         self.log = log
@@ -118,11 +140,13 @@ class PortalBrowser:
             self.page.goto(self.start_url, wait_until="domcontentloaded", timeout=self.read_timeout())
             self.page.wait_for_function(
                 """headings => [...document.querySelectorAll('h1,h2,h3,[role=heading]')].some(
-                    e => headings.includes(e.textContent.trim()) && e.getClientRects().length
-                ) || [...document.querySelectorAll('form input')].some(
+                    e => (headings.length === 0 || headings.includes(e.textContent.trim())) && e.getClientRects().length
+                ) || [...document.querySelectorAll(
+                    headings.length ? 'form input' : 'input,textarea,button,[role=textbox]'
+                )].some(
                     e => e.type !== 'hidden' && e.getClientRects().length
                 )""",
-                arg=self.settings.authenticated_headings,
+                arg=[] if self.semantic else self.settings.authenticated_headings,
                 timeout=self.timeout(),
             )
             return self
