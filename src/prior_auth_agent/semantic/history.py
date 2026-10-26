@@ -27,6 +27,12 @@ def unique_control(snapshot: UISnapshot, labels: list[str], *, enabled: bool = T
         for c in snapshot.controls
         if c.role in ("button", "link", "tab") and matches(c.label, labels) and (c.enabled or not enabled)
     ]
+    if (
+        len(controls) > 1
+        and all(c.role == "link" and c.href for c in controls)
+        and len({c.href for c in controls}) == 1
+    ):
+        controls = controls[:1]
     if len(controls) > 1:
         history_stop("A required history navigation control is ambiguous.")
     return controls[0] if controls else None

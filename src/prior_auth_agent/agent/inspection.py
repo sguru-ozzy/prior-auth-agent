@@ -160,10 +160,13 @@ def inspect_portal(
                     if adapter == "auto":
                         # Shared sign-in pages do not establish a shared task interface.
                         use_semantic = not (
-                            browser.page.get_by_role(
-                                "link", name=workflow_settings.labels["new_request"], exact=True
-                            ).count()
-                            == 1
+                            (
+                                not complete
+                                or browser.page.get_by_role(
+                                    "link", name=workflow_settings.labels["new_request"], exact=True
+                                ).count()
+                                >= 1
+                            )
                             and browser.page.get_by_role(
                                 "link", name=recovery_settings.history.navigation, exact=True
                             ).count()

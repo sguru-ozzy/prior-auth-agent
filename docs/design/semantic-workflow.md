@@ -52,6 +52,8 @@ widgets, incomplete pagination or missing saved evidence still escalate. Automat
 is heuristic; explicit adapter selection is available. Neither adapter changes after request writes start.
 Operator continuation of an unfamiliar portal's old draft is deliberately not automated.
 
-No test cases, test suite runs or live submissions were added for this change, as requested. Static checks
-are recorded with the implementation. Portal B remains unavailable; implementation is not evidence that
-it completes Portal B. Existing evaluation results apply to their recorded earlier commit.
+No new test cases were added. After the user authorized regression verification, the existing **307 tests**
+and **five fresh Portal A workflows** passed. P003's three runs had identical result/action hashes and passed
+independent replay and duplicate checks. This caught and fixed automatic profile selection around equivalent
+navigation links. These checks exercise Portal A's default adapter; full execution of the forced semantic path
+and actual Portal B completion remain unverified. The earlier full evaluation remains tied to its recorded commit.

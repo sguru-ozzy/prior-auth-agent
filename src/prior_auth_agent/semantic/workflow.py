@@ -226,6 +226,10 @@ class SemanticWorkflow:
             and matches(c.label, self.settings.intents[intent])
             and (snapshot.fingerprint, UIAction(intent=intent, target=c.ref).id) not in self.ui.executed
         ]
+        if intent == "new_request" and len(actions) > 1:
+            controls = [snapshot.control(action.target) for action in actions]
+            if all(c.role == "link" and c.href for c in controls) and len({c.href for c in controls}) == 1:
+                actions = actions[:1]
         if intent in ("create", "send", "new_request", "new_patient") and len(actions) > 1:
             raise stop(
                 "workflow_target_ambiguous",

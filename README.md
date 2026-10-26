@@ -2,9 +2,11 @@
 
 A controlled browser agent for the Lamar Health prior authorization exercise.
 
-**Status:** verified Portal A results are recorded in [evaluation results](evals/results/README.md).
-An endpoint-independent browser workflow is now implemented for unfamiliar portals. This change has
-static checks only; it has not been exercised live or against Portal B.
+**Status:** Portal A regression checks pass: **307 isolated tests** and **five fresh successful workflows**
+across the three supplied clean records. P003's three runs have identical results and action logs, with
+independent cached-replay and duplicate checks. The unfamiliar-portal semantic path is implemented;
+its full workflow and Portal B coverage remain unverified. Earlier full results are in
+[evaluation results](evals/results/README.md).
 
 [Design and decisions](docs/README.md) · [CLI testing guide](docs/testing.md)
 

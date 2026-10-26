@@ -17,8 +17,14 @@ Portal A's endpoint allowlist. Only one mutation is permitted per action; uncert
 The closed semantic vocabulary intentionally sacrifices coverage when meaning cannot be established.
 
 **Verification:** lint, formatting, static typing, Python/JavaScript syntax, configuration schemas and
-CLI help. No tests or live workflows were run for this change, at the user's request. Prior evaluation
-results are retained as evidence for their recorded commit, not for this implementation.
+package builds passed. A subsequent authorized regression run found and fixed two navigation assumptions:
+Portal A can expose equivalent New request links in the sidebar and dashboard, and read-only inspection
+does not require an intake link. Equivalent links are accepted only when their full trusted destinations match.
+The existing suite now passes **307 tests**. All three supplied clean records complete in **five fresh live runs**;
+P003's three result/action hashes match, and independent cached-replay and open-request checks pass.
+No test cases were added. These live checks cover the default Portal A adapter, not the forced semantic path.
+The private report is `artifacts/regression-semantic-20261025-fixed/report.json`.
+Prior full evaluation results remain evidence for their recorded commit.
 
 **Next:** exercise this path against independently varied interfaces and rerun Portal A before freezing
 the submission. Lamar performs the actual unseen Portal B evaluation.
