@@ -1,0 +1,89 @@
+{
+  "version": "inspection-v1",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "none",
+  "run_seconds": 120,
+  "wait_ms": 10000,
+  "max_actions": 12,
+  "max_model_calls": 12,
+  "model_timeout_seconds": 20,
+  "transport_retries": 2,
+  "authentication_paths": [
+    "/signin",
+    "/signin/password"
+  ],
+  "authenticated_headings": [
+    "Dashboard"
+  ],
+  "bindings": [
+    {
+      "id": "auth.username",
+      "labels": [
+        "Username",
+        "User name"
+      ],
+      "role": "textbox",
+      "input_types": [
+        "text",
+        "email"
+      ],
+      "sections": [],
+      "purpose": "username",
+      "source": null
+    },
+    {
+      "id": "auth.password",
+      "labels": [
+        "Password"
+      ],
+      "role": "textbox",
+      "input_types": [
+        "password"
+      ],
+      "sections": [],
+      "purpose": "password",
+      "source": null
+    },
+    {
+      "id": "auth.continue",
+      "labels": [
+        "Continue"
+      ],
+      "role": "button",
+      "input_types": [],
+      "sections": [],
+      "purpose": "continue",
+      "source": null
+    },
+    {
+      "id": "auth.sign_in",
+      "labels": [
+        "Sign in",
+        "Log in"
+      ],
+      "role": "button",
+      "input_types": [],
+      "sections": [],
+      "purpose": "sign_in",
+      "source": null
+    },
+    {
+      "id": "patient.first_name",
+      "labels": [
+        "First name",
+        "Given name"
+      ],
+      "role": "textbox",
+      "input_types": [
+        "text"
+      ],
+      "sections": [
+        "Patient",
+        "Patient information",
+        "Patient details"
+      ],
+      "purpose": "fact",
+      "source": "patient.first_name"
+    }
+  ]
+}

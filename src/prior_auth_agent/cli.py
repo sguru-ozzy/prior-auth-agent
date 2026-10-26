@@ -22,7 +22,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="run_agent",
         description="Validate one prior authorization record and report a verified outcome or human handoff.",
-        epilog="Preflight milestone: valid records escalate until the browser workflow is implemented.",
+        epilog="Default: local preflight. --inspect-portal signs in and observes; request writes remain disabled.",
     )
     parser.add_argument("--portal-url", required=True, metavar="URL", help="Portal start page.")
     parser.add_argument(
@@ -42,7 +42,33 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--as-of", type=_reference_date, help="Reference date for reproducible DOB checks (YYYY-MM-DD)."
     )
+    parser.add_argument(
+        "--inspect-portal", action="store_true", help="Sign in and observe; never create or send a request."
+    )
+    parser.add_argument(
+        "--auth-origin", action="append", default=[], help="Explicitly trusted additional sign-in origin."
+    )
+    parser.add_argument("--browser-config", type=Path, help="Complete reviewed browser and model configuration.")
+    parser.add_argument(
+        "--planner",
+        choices=("reviewed", "model"),
+        default="reviewed",
+        help="Reviewed authentication rules or constrained live-model proposals.",
+    )
     arguments = parser.parse_args(argv)
+    if not arguments.inspect_portal and (
+        arguments.auth_origin or arguments.browser_config or arguments.planner != "reviewed"
+    ):
+        parser.error("Browser options require --inspect-portal.")
     return run(
-        arguments.portal_url, arguments.patient, arguments.credentials, arguments.out, arguments.config, arguments.as_of
+        arguments.portal_url,
+        arguments.patient,
+        arguments.credentials,
+        arguments.out,
+        arguments.config,
+        arguments.as_of,
+        arguments.inspect_portal,
+        arguments.auth_origin,
+        arguments.browser_config,
+        arguments.planner,
     )

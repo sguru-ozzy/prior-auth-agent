@@ -23,7 +23,7 @@ def settings() -> Settings:
 @pytest.fixture(autouse=True)
 def forbid_network(monkeypatch: pytest.MonkeyPatch) -> None:
     def reject_connection(*args: object, **kwargs: object) -> None:
-        raise AssertionError("PR 2 must not access a portal or model.")
+        raise AssertionError("Tests must not contact an external portal or model.")
 
     monkeypatch.setattr(socket.socket, "connect", reject_connection)
     monkeypatch.setattr(socket, "create_connection", reject_connection)

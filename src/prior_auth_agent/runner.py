@@ -1,15 +1,18 @@
-"""Preflight orchestration; browser access remains disabled in this milestone."""
+"""Validate before access, optionally inspect, and publish a precise human handoff."""
 
 import hashlib
 import json
 import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Literal
 
 from prior_auth_agent.audit import ActionLog
 from prior_auth_agent.contracts import RunResult
 from prior_auth_agent.errors import InputProblem, Issue
+from prior_auth_agent.inspection import inspect_portal
 from prior_auth_agent.jsonio import load_object, write_atomic
+from prior_auth_agent.proposals import DEFAULT_BROWSER_SETTINGS
 from prior_auth_agent.validation import (
     DEFAULT_SETTINGS,
     load_settings,
@@ -36,11 +39,27 @@ def run(
     output: Path,
     config: Path | None = None,
     reference_date: date | None = None,
+    inspect: bool = False,
+    auth_origins: list[str] | None = None,
+    browser_config: Path | None = None,
+    planner: Literal["reviewed", "model"] = "reviewed",
 ) -> int:
     try:
         log_path = action_log_path(output)
         for target in (output, log_path):
-            if any(_same_path(target, source) for source in (patient, credentials, config or DEFAULT_SETTINGS)):
+            if any(
+                _same_path(target, source)
+                for source in (
+                    patient,
+                    credentials,
+                    config or DEFAULT_SETTINGS,
+                    browser_config or DEFAULT_BROWSER_SETTINGS,
+                    Path(__file__).resolve().parents[2] / "local" / "model.env",
+                    Path(__file__).resolve().parents[2] / ".env",
+                    Path.cwd() / ".env",
+                    Path.cwd() / "local" / "model.env",
+                )
+            ):
                 raise OSError("Artifact path aliases an input.")
         if _same_path(output, log_path):
             raise OSError("Artifact paths must differ.")
@@ -63,19 +82,27 @@ def run(
             log.event("patient_loaded")
             validate_patient(facts, settings, reference_date)
             log.event("patient_validated")
-            validate_credentials(load_object(credentials, "credentials", settings.max_input_bytes))
+            login = validate_credentials(load_object(credentials, "credentials", settings.max_input_bytes))
             log.event("credentials_validated")
             validate_url(portal_url)
-            issue = Issue(
-                "portal.workflow",
-                "workflow_unavailable",
-                "Browser workflow is not implemented; no portal access was attempted.",
-                "Complete the request manually, or rerun when the browser workflow is available.",
-            )
-            log.event("portal_access_blocked", issue=issue)
+            if inspect:
+                issue = inspect_portal(portal_url, login, log, auth_origins or [], browser_config, planner)
+            else:
+                issue = Issue(
+                    "portal.workflow",
+                    "workflow_unavailable",
+                    "Browser workflow is not implemented; no portal access was attempted.",
+                    "Complete the request manually, or rerun when the browser workflow is available.",
+                )
+                log.event("portal_access_blocked", issue=issue)
         except InputProblem as error:
             issue = error.issue
-            log.event("validation_rejected", issue=issue)
+            log.event(
+                "inspection_escalated"
+                if issue.field.startswith(("portal.", "model.", "browser.")) and inspect
+                else "validation_rejected",
+                issue=issue,
+            )
         result = RunResult.from_issue(issue)
         log.event("outcome_selected", issue=issue, status=result.status)
     except OSError:
