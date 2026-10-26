@@ -18,6 +18,7 @@ from prior_auth_agent.evaluation.contracts import (
     source_fields_match,
 )
 from prior_auth_agent.evaluation.portal import FreshPortal
+from prior_auth_agent.evaluation.suite import main as evaluation_main
 
 MANIFEST = Path(__file__).resolve().parents[2] / "evals" / "portal_a.json"
 
@@ -162,3 +163,42 @@ def test_startup_timeout_terminates_only_the_owned_process(tmp_path: Path, monke
     process.terminate.assert_called_once()
     process.wait.assert_called_once_with(timeout=10)
     process.kill.assert_not_called()
+
+
+def test_evaluator_preserves_virtual_environment_executable_path(
+    tmp_path: Path, record: dict[str, JsonValue], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from_path = tmp_path / "venv" / "bin" / "python"
+    from_path.parent.mkdir(parents=True)
+    from_path.symlink_to("/usr/bin/python3")
+    records = tmp_path / "records.json"
+    records.write_text(json.dumps([record]))
+    manifest = json.loads(MANIFEST.read_text())
+    manifest["cases"] = [next(case for case in manifest["cases"] if case["id"] == "clean-p001")]
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps(manifest))
+    credentials = tmp_path / "credentials.json"
+    credentials.write_text('{"username":"synthetic","password":"synthetic"}')
+    fresh = Mock(side_effect=RuntimeError("Deliberate setup stop before portal access"))
+    monkeypatch.setattr("prior_auth_agent.evaluation.suite.FreshPortal", fresh)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluate",
+            "--manifest",
+            str(path),
+            "--records",
+            str(records),
+            "--credentials",
+            str(credentials),
+            "--portal-python",
+            str(from_path),
+            "--out-dir",
+            str(tmp_path / "out"),
+            "--agent-root",
+            str(MANIFEST.parents[1]),
+        ],
+    )
+    assert evaluation_main() == 1
+    assert fresh.call_args.args[1] == from_path.absolute()
+    assert fresh.call_args.args[1] != from_path.resolve()

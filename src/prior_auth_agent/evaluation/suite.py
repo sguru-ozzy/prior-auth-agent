@@ -89,8 +89,10 @@ def run_case(
 
 def evaluate(arguments: argparse.Namespace) -> int:
     root = Path.cwd() if arguments.agent_root is None else arguments.agent_root.resolve()
-    for name in ("manifest", "records", "credentials", "out_dir", "portal_repo", "portal_python"):
+    for name in ("manifest", "records", "credentials", "out_dir", "portal_repo"):
         setattr(arguments, name, getattr(arguments, name).resolve())
+    # Preserve the venv executable path: resolving its symlink selects the base interpreter instead.
+    arguments.portal_python = arguments.portal_python.absolute()
     manifest = Suite.model_validate_json(arguments.manifest.read_text())
     records = json.loads(arguments.records.read_text())
     if not isinstance(records, list) or not all(isinstance(record, dict) for record in records):
@@ -137,7 +139,7 @@ def evaluate(arguments: argparse.Namespace) -> int:
                     )
                 else:
                     with FreshPortal(
-                        arguments.portal_repo.resolve(), arguments.portal_python.resolve(), directory, manifest.seed
+                        arguments.portal_repo.resolve(), arguments.portal_python, directory, manifest.seed
                     ):
                         observer = Observer(credentials, directory)
                         before = observer.snapshot()
