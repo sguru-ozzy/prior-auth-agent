@@ -24,3 +24,7 @@ Every selected case keeps its expected status and field in the manifest. Unexpec
 completion target, even if the stop was safe. Missing oracle evidence is an evaluation error. Reports record the
 commit, dirty-tree flag, input/manifest hashes, selected and unrun cases, and failed checks. No normalization hides
 changing receipts, outcomes or action sequences. Evidence directories are never reused or overwritten.
+
+The first clean smoke evaluation exposed a query-echo regression: Portal A lowercases the echoed search term.
+The adapter now applies that explicit configured comparison only to the query echo, while preserving exact
+source and saved-patient checks. Fixtures reproduce the observed lowercase echo, including stale-query rejection.

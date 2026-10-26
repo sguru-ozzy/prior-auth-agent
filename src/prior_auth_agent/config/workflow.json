@@ -266,5 +266,6 @@
     "coverage.group": [
       "Rx group"
     ]
-  }
+  },
+  "patient_search_echo_format": "casefold"
 }

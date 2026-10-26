@@ -214,11 +214,13 @@ class RequestWorkflow:
         self.search(search, query, "patient.member_id", "patient_search", self.settings.patient_search_query_key)
         response = self.read("patient_search", {self.settings.patient_search_query_key: query})
         results = response.get("results")
-        if (
-            response.get("query") != query
-            or not isinstance(results, list)
-            or not all(isinstance(row, dict) for row in results)
-        ):
+        echo = response.get("query")
+        echo_matches = isinstance(echo, str) and (
+            echo.casefold() == query.casefold()
+            if self.settings.patient_search_echo_format == "casefold"
+            else echo == query
+        )
+        if not echo_matches or not isinstance(results, list) or not all(isinstance(row, dict) for row in results):
             raise stop(
                 "patient_search_unverified",
                 "Patient search results cannot be tied to the current query.",

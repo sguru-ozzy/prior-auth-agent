@@ -434,7 +434,7 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
                 results = [] if scenario in ("new-patient", "new-patient-mismatch", "alternate-layout") else [patient]
                 if scenario == "ambiguous-patient":
                     results = [patient, patient]
-                self.json({"query": "OLD_QUERY" if scenario == "stale-query" else query, "results": results})
+                self.json({"query": "OLD_QUERY" if scenario == "stale-query" else query.lower(), "results": results})
             elif path == "/api/wizard":
                 self.json({"draft": state["wizard"]})
             elif path == "/api/requests/REQ-TEST":
@@ -858,3 +858,15 @@ def test_send_throttling_is_never_retried_even_on_a_new_invocation(
         assert json.loads((tmp_path / "result.json").read_text())["status"] == "ESCALATED"
         assert main(args) == 0
         assert state["send_attempts"] == 1 and state["sends"] == 0
+
+
+def test_query_echo_comparison_uses_only_the_reviewed_format(tmp_path: Path, record: dict[str, JsonValue]) -> None:
+    config = json.loads((Path(__file__).resolve().parents[2] / "src/prior_auth_agent/config/workflow.json").read_text())
+    config["patient_search_echo_format"] = "exact"
+    path = tmp_path / "workflow.json"
+    path.write_text(json.dumps(config))
+    with portal(record) as (url, state):
+        assert main([*arguments(tmp_path, record, url), "--workflow-config", str(path)]) == 0
+        result = json.loads((tmp_path / "result.json").read_text())
+        assert result["status"] == "ESCALATED" and result["escalation"]["field"] == "patient.member_id"
+        assert state["creates"] == state["sends"] == 0
