@@ -3,6 +3,49 @@
 Run commands from the repository after [setup](../README.md#setup).
 Use only synthetic exercise data. Pass one JSON object; the supplied sample-patient file is an array.
 
+## Prepare a patient
+
+Keep your existing `local/patient.json` if you already have one. Otherwise, this selects supplied record
+P003 without changing its facts. Change the record ID only to choose another supplied record.
+
+```bash
+.venv/bin/python - <<'PY'
+import json
+from pathlib import Path
+
+output = Path("local/patient.json")
+if output.exists():
+    raise SystemExit("local/patient.json already exists; kept unchanged.")
+records = json.loads(Path("../portal-a/examples/sample_patients.json").read_text(encoding="utf-8"))
+record = next(item for item in records if item.get("record_id") == "P003")
+output.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+output.touch(mode=0o600, exist_ok=False)
+output.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+PY
+```
+
+## Semantic browser workflow
+
+Start Portal A, then run from the agent repository. Configure the key in `.env` first; substitute
+`local/model.env` if you already keep it there.
+
+```bash
+uv run --env-file .env --no-sync ./run_agent \
+  --portal-url http://127.0.0.1:9463/dashboard \
+  --patient local/patient.json \
+  --credentials ../portal-a/examples/credentials.json \
+  --out artifacts/semantic-result.json \
+  --adapter semantic
+```
+
+The action log should identify `portal_adapter_selected` with `action: semantic`. Without a key, omit
+the `uv run --env-file .env --no-sync` prefix to use deterministic candidate selection.
+This exercises the new execution path on Portal A; it does not establish Portal B coverage or guarantee completion.
+
+Use an unused supplied clean record to exercise the browser. A locally completed case replays its saved
+result, and an existing open request escalates. Preserve journals; a new state directory belongs to a
+separately reset test environment, not a retry of an unresolved request.
+
 ## Local validation
 
 No running portal or API key is needed.

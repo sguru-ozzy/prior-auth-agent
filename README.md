@@ -1,18 +1,18 @@
 # Prior Auth Agent
 
-A controlled browser agent for the Lamar Health prior authorization exercise.
+A browser agent for the Lamar Health prior authorization exercise. It uses supplied patient facts,
+checks for existing requests, and either reports a verified submission or hands the case to a human.
 
-**Status:** Portal A regression checks pass: **307 isolated tests** and **five fresh successful workflows**
-across the three supplied clean records. P003's three runs have identical results and action logs, with
-independent cached-replay and duplicate checks. The unfamiliar-portal semantic path is implemented;
-its full workflow and Portal B coverage remain unverified. Earlier full results are in
-[evaluation results](evals/results/README.md).
+**Verified:** 307 isolated tests and five fresh successful Portal A workflows across the three clean records.
+P003's three runs produced identical results and action logs, with independent replay and duplicate checks.
+The semantic browser path is implemented; its full workflow and Portal B coverage remain unverified.
 
-[Design and decisions](docs/README.md) · [CLI testing guide](docs/testing.md)
+[Design and decisions](docs/README.md) · [CLI guide](docs/testing.md) · [Earlier full evaluation](evals/results/README.md)
 
 ## Setup
 
 Use Python **3.12.14** and [uv **0.13.5**](https://docs.astral.sh/uv/getting-started/installation/#installing-a-specific-version).
+Run from this repository:
 
 ```bash
 uv python install
@@ -21,20 +21,28 @@ uv run --no-sync playwright install chromium
 ./run_agent --help
 ```
 
-On Linux, use `uv run --no-sync playwright install --with-deps chromium`.
-The launcher uses the repository's `.venv`; dependencies are pinned in `uv.lock`.
-
-For model-assisted planning, copy `.env.example` to the ignored `.env`, set its permissions to `600` and add
-`OPENAI_API_KEY` in your editor. Load it explicitly with `uv run --env-file .env`; an exported key also works.
+On Linux, install Chromium with `uv run --no-sync playwright install --with-deps chromium`.
+The launcher uses `.venv`; dependencies are pinned in `uv.lock`. Portal A needs its own environment,
+installed according to the supplied portal README.
 
 ## Run
 
-Start Portal A separately. Pass one supplied patient object; the example assumes a sibling `portal-a` checkout.
+In a separate terminal, starting from the agent repository:
+
+```bash
+cd ../portal-a
+.venv/bin/python -m portals --variance off --seed 42
+```
+
+If the portal is already running, reuse it. Put **one supplied patient JSON object** in `local/patient.json`;
+the supplied `sample_patients.json` is an array. See [prepare a patient](docs/testing.md#prepare-a-patient).
+
+Back in the agent repository, run the assignment interface:
 
 ```bash
 ./run_agent \
   --portal-url http://127.0.0.1:9463/dashboard \
-  --patient tests/fixtures/patient.json \
+  --patient local/patient.json \
   --credentials ../portal-a/examples/credentials.json \
   --out artifacts/result.json
 
@@ -42,91 +50,73 @@ cat artifacts/result.json
 cat artifacts/result.actions.jsonl
 ```
 
-The default command validates the record, signs in, checks duplicates, selects or enters the patient, and matches the medication and plan,
-answers and saves supported questions, attests with the supplied full name, and sends once.
-Success requires the same request's "Sent to plan" status and confirmation number.
-Missing facts, unsupported questions and ambiguous matches escalate without inventing answers.
+The default flow validates, signs in, checks duplicates, selects or enters the patient, matches the
+medication and plan, answers supported questions, attests with the supplied name, and sends once.
 
-- Add `--validate-only` for local validation without portal access.
-- Add `--inspect-portal` for sign-in and read-only duplicate/recovery checks.
-- The default `--adapter auto` recognizes the reviewed Portal A profile and uses the semantic workflow otherwise.
-- Add `--adapter semantic` to force the endpoint-independent browser loop, or `--adapter reviewed` for Portal A.
-- An exported `OPENAI_API_KEY` enables constrained planning throughout the semantic workflow; without it, candidate selection is deterministic.
-- Add `--planner model` to also require model proposals during reviewed sign-in.
-- Use `--as-of YYYY-MM-DD` to fix the DOB reference date.
+Read the result's `status`:
 
-Exit **0** means a result was written; read its `status`. Invalid usage or unavailable output storage exits **2**.
-Results contain `status`, `reason`, `confirmation_id`, `fields_filled` and `escalation`.
-Logs sit beside results as `<name>.actions.jsonl`. Reusing an output path replaces both files.
+- **SUCCESS:** the same request has a verified sent status and confirmation. This does not mean payer approval.
+- **FAILED:** the portal explicitly rejected a valid submission.
+- **ESCALATED:** a human must resolve invalid data, an ambiguous match, missing evidence or a portal blocker.
 
-## Checks
+Exit **0** means a result was written; exit **2** means invalid usage or unavailable output storage.
+The result also contains `reason`, `confirmation_id`, `fields_filled` and `escalation`.
+The action log is `<output-name>.actions.jsonl`. Reusing an output path replaces both files.
+
+## Adapters and model access
+
+- Default `--adapter auto`: recognize the reviewed Portal A interface; otherwise use the semantic browser path.
+- `--adapter reviewed`: force the Portal A adapter.
+- `--adapter semantic`: force the browser path that reads controls without Portal A endpoints.
+- `--validate-only`: validate locally. `--inspect-portal`: sign in and check history without request writes.
+
+Portal A's default path needs no API key. On the semantic path, an exported `OPENAI_API_KEY` enables
+constrained planning throughout the workflow; without it, candidate selection uses stable rules.
+`--planner model` also requires model proposals during reviewed sign-in.
+
+For model access, copy `.env.example` to the ignored `.env`, set permissions to `600`, and enter the key in
+your editor. Load it explicitly with `uv run --env-file .env --no-sync ./run_agent ...`.
+If your key is already in `local/model.env`, use that file instead.
+See the [complete semantic command](docs/testing.md#semantic-browser-workflow).
+
+## Test and evaluate
 
 ```bash
+uv run --no-sync pytest
 uv run --no-sync ruff check .
 uv run --no-sync ruff format --check .
-uv run --no-sync pytest
 uv build --no-sources
 ```
 
-Tests use isolated synthetic fixtures and need neither Portal A nor an API key.
-CI tests a non-editable installed package on Ubuntu. Use `uv sync --locked --no-editable --reinstall-package prior-auth-agent` to reproduce it;
-`uv sync --locked` restores editable development.
+These tests use isolated synthetic fixtures and need neither Portal A nor an API key.
+The [live evaluator](docs/testing.md#assignment-evaluation) starts and stops fresh Portal A servers;
+stop the development portal first. It checks portal records independently, repeatability and duplicate protection.
 
-For opt-in live case reports and full-workflow repeatability, see [assignment evaluation](docs/testing.md#assignment-evaluation).
+The earlier full evaluation met **45 of 51** run expectations; six hard cases still escalated.
+The latest live regression pass covered the clean records. See the linked reports for scope and limitations.
 
-## Design
+## Design and recovery
 
 **LLM proposes → validator checks → workflow authorizes → browser executes and verifies.**
 
-- Validate Section 4 rules before portal access. Preserve source facts, including missing, null, false and zero.
-- Enter a new patient only after a successful search tied to the current query proves no matches.
-  Verify all saved patient fields before Create.
-- Retry reads within configured limits; never replay Create or Send. Dismiss only reviewed notices.
-- Match reviewed equivalent labels and native controls; escalate unfamiliar or ambiguous meanings.
-- Bind reviewed question wording and kinds to source fields. Unknown required meanings or missing answers escalate.
-- Evaluate conditional questions; type reviewed formats and verify both visible controls and persisted answers.
-- Keep optional unsupported answers blank. Prior-therapy classification uses a closed, reviewed configuration;
-  unfamiliar or absent evidence is not treated as a negative answer.
-- Keep model proposals free of patient values, credentials, arbitrary selectors and URLs.
-- Persist the case lock and Create/Send intents before allowing narrowly scoped browser writes.
-  Reconcile uncertain Send from the same request's explicit sent status and receipt.
-- Check for unexpected popups and blocked requests before attestation and again before Send.
-- Verify the exact attestation before Send. Validate the supplied NPI format; the inspected Portal A account
-  and attestation screens do not expose the account-to-NPI relationship, so it is not independently verified.
-- Keep logs free of source values, credentials and raw model output. Results retain the supplied facts used,
-  rather than substituting formatted portal values.
+- Validate before portal access. Use supplied facts and reviewed formatting; never repair input or invent answers.
+- Keep task decisions separate from portal controls. Unknown required meanings or ambiguous matches escalate.
+- Verify saved answers and the request's identity before Send. Bound retries and never replay uncertain Create or Send.
+- Persist a case lock and write intents. Keep credentials and full patient identifiers out of action logs.
+- Use only supplied synthetic data and ordinary portal UI/APIs. Do not read portal source datasets or call
+  `/__state` or `/__control`.
 
-Reviewed [semantic workflow](src/prior_auth_agent/config/semantic.json),
-[validation](src/prior_auth_agent/config/validation.json),
-[browser/model](src/prior_auth_agent/config/browser.json),
-[recovery](src/prior_auth_agent/config/recovery.json) and
-[workflow](src/prior_auth_agent/config/workflow.json) configuration can be replaced with the corresponding
-`--semantic-config`, `--config`, `--browser-config`, `--recovery-config` and `--workflow-config` options.
+Recovery state defaults to `${XDG_STATE_HOME:-~/.local/state}/prior-auth-agent`. Keep it across runs;
+changing `--out` does not start a new case. A completed case replays its saved result; an existing open
+request escalates. Preserve unresolved journals. After resetting a practice portal, use separate state
+for that new test environment while retaining the old journals.
 
-Recovery state defaults to `${XDG_STATE_HOME:-~/.local/state}/prior-auth-agent`, independently of output paths.
-`--state-dir` overrides it. Preserve the directory and unresolved journals across runs.
-An existing open request escalates by default. After operator review, `--resume-request <ID>` may continue only
-this case's journaled, unsent draft with unchanged input and freshly verified identity, answers and history.
-It cannot repeat Create or resume a pending Send. A verified completed case replays its saved result.
-After resetting a practice portal, use separate recovery state for that fresh test environment; keep the original journals.
+Operator-reviewed draft continuation is available through `--resume-request` on the reviewed adapter;
+it cannot repeat Create or resume pending Send. The semantic adapter requires manual continuation.
+Use `./run_agent --help` for configuration overrides and `--as-of` for a fixed validation date.
 
-The reviewed adapter uses Portal A's observed controls and read endpoints. The semantic adapter reads the
-rendered UI, verifies complete history and saved answers, and uses no Portal A endpoints. Its model chooses
-only code-authorized actions; unfamiliar required meanings, ambiguous matches and unsupported evidence escalate.
-Cached plans constrain repeated model choices; first uncached choices can vary. Neither path has verified
-Portal B coverage. See [the semantic workflow design](docs/design/semantic-workflow.md) for boundaries and limits.
+See the [semantic design](docs/design/semantic-workflow.md) for the bounded vocabulary, action permissions
+and model-cache limits. First uncached model choices can vary. Portal B is evaluated by Lamar and has
+not been available for verification.
 
-## Layout
-
-```text
-src/prior_auth_agent/   CLI, contracts and validation
-  agent/               Planner, question decisions and recovery
-  browser/             Browser session, history and workflow adapter
-  config/              Reviewed rules and limits
-  storage/             JSON, private journals, results and logs
-tests/                 Unit/integration tests and synthetic fixtures
-evals/                 Opt-in live repeatability checks
-docs/                  Testing guide and PR decision records
-```
-
-`.env`, `local/`, `artifacts/` and `.state/` are ignored. Use only synthetic exercise data.
+Inputs, keys, artifacts and local state belong in the ignored `.env`, `local/`, `artifacts/` and `.state/` paths.
