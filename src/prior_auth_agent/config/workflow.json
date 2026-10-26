@@ -1,0 +1,195 @@
+{
+  "version": "portal-a-workflow-v1",
+  "auth_origins": {
+    "http://127.0.0.1:9463": [
+      "http://127.0.0.1:9464"
+    ]
+  },
+  "labels": {
+    "new_request": "New request",
+    "patient_search": "Search patients",
+    "medication_search": "Medication",
+    "patient_region": "1 Patient",
+    "medication_region": "2 Medication",
+    "plan_region": "3 Plan and form",
+    "find_forms": "Find forms",
+    "create": "Create request",
+    "questions": "Questions",
+    "summary": "Summary",
+    "save": "Save",
+    "send": "Send to plan",
+    "cookie_dismiss": "Reject non-essential",
+    "missing_questions": "Answer every required question before sending:",
+    "new_patient": "New patient",
+    "patient_no_matches": "No matches",
+    "gender": "Gender",
+    "state": "State"
+  },
+  "question_rules": [
+    {
+      "labels": [
+        "Primary diagnosis (ICD-10 code)"
+      ],
+      "kinds": [
+        "text"
+      ],
+      "source": "clinical.diagnosis_icd10",
+      "format": "text"
+    },
+    {
+      "labels": [
+        "Is this a new start of therapy?"
+      ],
+      "kinds": [
+        "radio"
+      ],
+      "source": "clinical.new_start",
+      "format": "boolean"
+    },
+    {
+      "labels": [
+        "When did the patient start this medication?"
+      ],
+      "kinds": [
+        "date"
+      ],
+      "source": "clinical.current_therapy_start_date",
+      "format": "date"
+    },
+    {
+      "labels": [
+        "Has the patient tried a conventional systemic therapy?"
+      ],
+      "kinds": [
+        "radio"
+      ],
+      "source": "clinical.prior_therapies",
+      "format": "therapy_test"
+    },
+    {
+      "labels": [
+        "Which therapy, when did it start, and why was it stopped?"
+      ],
+      "kinds": [
+        "textarea"
+      ],
+      "source": "clinical.prior_therapies",
+      "format": "therapy_detail"
+    },
+    {
+      "labels": [
+        "Quantity per 28 days"
+      ],
+      "kinds": [
+        "number"
+      ],
+      "source": "clinical.quantity_per_28_days",
+      "format": "text"
+    },
+    {
+      "labels": [
+        "Where will the patient receive this medication?"
+      ],
+      "kinds": [
+        "radio"
+      ],
+      "source": "clinical.site_of_care",
+      "format": "text"
+    },
+    {
+      "labels": [
+        "Which benefit covers this request?"
+      ],
+      "kinds": [
+        "radio"
+      ],
+      "source": "coverage.benefit",
+      "format": "text"
+    },
+    {
+      "labels": [
+        "Anything else the reviewer should know"
+      ],
+      "kinds": [
+        "textarea"
+      ],
+      "source": "clinical.notes",
+      "format": "text"
+    },
+    {
+      "labels": [
+        "Prescriber NPI"
+      ],
+      "kinds": [
+        "text"
+      ],
+      "source": "prescriber.npi",
+      "format": "text"
+    },
+    {
+      "labels": [
+        "Subscriber/employee ID",
+        "Subscriber / employee ID",
+        "Subscriber or employee ID",
+        "Employee ID",
+        "State employee ID of the subscriber"
+      ],
+      "kinds": [
+        "text"
+      ],
+      "source": "coverage.subscriber_employee_id",
+      "format": "text"
+    }
+  ],
+  "boolean_answers": {
+    "true": "Yes",
+    "false": "No"
+  },
+  "sex_labels": {
+    "M": "Male",
+    "F": "Female",
+    "X": "Other"
+  },
+  "supported_systemic_therapies": [
+    "Acitretin",
+    "Cyclosporine"
+  ],
+  "paths": {
+    "account": "/api/me",
+    "wizard": "/api/wizard",
+    "create": "/api/requests",
+    "detail": "/api/requests/{request_id}",
+    "questions": "/api/requests/{request_id}/questions",
+    "answers": "/api/requests/{request_id}/answers",
+    "send": "/api/requests/{request_id}/send"
+  },
+  "wait_ms": 10000,
+  "max_question_rounds": 1,
+  "max_wizard_writes": 40,
+  "attestation_statement": "By typing your name you attest that the information in this request is accurate.",
+  "submission_labels": {
+    "electronic": "Send to plan",
+    "fax": "Fax to plan"
+  },
+  "validation_fields": {
+    "BIN": "coverage.bin",
+    "PCN": "coverage.pcn",
+    "Group": "coverage.group",
+    "Search patients": "patient.member_id",
+    "Medication": "medication.name",
+    "Your full name": "attestation_name",
+    "First name": "patient.first_name",
+    "Last name": "patient.last_name",
+    "Date of birth": "patient.date_of_birth",
+    "ZIP code": "patient.zip_code",
+    "Member ID": "patient.member_id"
+  },
+  "new_patient_fields": {
+    "patient.first_name": "First name",
+    "patient.last_name": "Last name",
+    "patient.date_of_birth": "Date of birth",
+    "patient.zip_code": "ZIP code",
+    "patient.member_id": "Member ID"
+  },
+  "state_option_pattern": "^{value}\\s+\u00b7\\s+.+$"
+}

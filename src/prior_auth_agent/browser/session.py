@@ -29,6 +29,13 @@ class NetworkGuard:
         self.authentication_paths = authentication_paths
         self.grant: tuple[str, str] | None = None
         self.blocked = False
+        self.writes: dict[tuple[str, str, str], int] = {}
+
+    def permit_write(self, destination: str, method: str, path: str, count: int = 1) -> None:
+        self.writes[(origin(destination), method, path)] = count
+
+    def revoke_writes(self) -> None:
+        self.writes.clear()
 
     def route(self, route: Route, request: Request) -> None:
         parsed = urlsplit(request.url)
@@ -42,9 +49,13 @@ class NetworkGuard:
             and not parsed.query
             and (origin(request.url), parsed.path) == self.grant
         )
+        permission = (origin(request.url), request.method, parsed.path) if trusted else None
+        workflow_write = permission is not None and self.writes.get(permission, 0) > 0 and not parsed.query
+        if workflow_write:
+            self.writes[permission] -= 1
         if granted:
             self.grant = None
-        if trusted and (read or granted):
+        if trusted and (read or granted or workflow_write):
             route.continue_()
         else:
             if not read or request.is_navigation_request():

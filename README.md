@@ -2,9 +2,9 @@
 
 A controlled browser agent for the Lamar Health prior authorization exercise.
 
-**Current scope:** validate one record, sign in, check existing requests and reconcile saved outcomes.
-New requests, patient answers, attestation and Send remain disabled. A clean inspection returns `ESCALATED`;
-recovery can return a previously verified outcome.
+**Status:** the normal CLI completed a fresh live Portal A run for supplied P003, including new-patient entry,
+saved answers, full-name attestation and verified confirmation `QMS-00001`. The log records one Create;
+the portal independently confirms one Send. All 254 local tests pass. Full hard-case evaluation remains pending.
 
 [Design and decisions](docs/README.md) · [CLI testing guide](docs/testing.md)
 
@@ -22,43 +22,35 @@ uv run --no-sync playwright install chromium
 On Linux, use `uv run --no-sync playwright install --with-deps chromium`.
 The launcher uses the repository's `.venv`; dependencies are pinned in `uv.lock`.
 
-For optional model testing:
-
-```bash
-[ -f .env ] || cp .env.example .env
-chmod 600 .env
-```
-
-Add `OPENAI_API_KEY` to `.env` in your editor. Model commands load it explicitly with `uv run --env-file .env`.
-The launcher also accepts an exported key. Keep keys and patient inputs out of Git.
+For optional model testing, copy `.env.example` to the ignored `.env`, set its permissions to `600` and add
+`OPENAI_API_KEY` in your editor. Load it explicitly with `uv run --env-file .env`; an exported key also works.
 
 ## Run
 
-Run from the repository with Portal A running separately at variance off.
-The example uses a supplied synthetic fixture and assumes `portal-a` is a sibling checkout.
+Start Portal A separately. Pass one supplied patient object; the example assumes a sibling `portal-a` checkout.
 
 ```bash
 ./run_agent \
   --portal-url http://127.0.0.1:9463/dashboard \
   --patient tests/fixtures/patient.json \
   --credentials ../portal-a/examples/credentials.json \
-  --out artifacts/inspect.json \
-  --as-of 2026-10-25 \
-  --inspect-portal \
-  --auth-origin http://127.0.0.1:9464
+  --out artifacts/result.json
 
-cat artifacts/inspect.json
-cat artifacts/inspect.actions.jsonl
+cat artifacts/result.json
+cat artifacts/result.actions.jsonl
 ```
 
-Expected for the supplied clean fixture: sign-in, `request_history_verified` and `duplicate_check_clear`,
-then `ESCALATED` at `portal.workflow` because request writes are disabled.
-An existing open request instead escalates at `portal.request`.
+The default command validates the record, signs in, checks duplicates, selects or enters the patient, and matches the medication and plan,
+answers and saves supported questions, attests with the supplied full name, and sends once.
+Success requires the same request's "Sent to plan" status and confirmation number.
+Missing facts, unsupported questions and ambiguous matches escalate without inventing answers.
 
-The default command runs local validation only. Without `--inspect-portal`, omit `--auth-origin` too.
-See the [testing guide](docs/testing.md) for complete preflight, model, invalid-record and repeatability commands.
+- Add `--validate-only` for local validation without portal access.
+- Add `--inspect-portal` for sign-in and read-only duplicate/recovery checks.
+- Add `--planner model` for constrained model proposals during sign-in; reviewed rules are the default.
+- Use `--as-of YYYY-MM-DD` to fix the DOB reference date.
 
-Exit **0** means a result was written; read its `status`. Invalid CLI usage or unsafe/unavailable output storage exits **2**.
+Exit **0** means a result was written; read its `status`. Invalid usage or unavailable output storage exits **2**.
 Results contain `status`, `reason`, `confirmation_id`, `fields_filled` and `escalation`.
 Logs sit beside results as `<name>.actions.jsonl`. Reusing an output path replaces both files.
 
@@ -72,7 +64,7 @@ uv build --no-sources
 ```
 
 Tests use isolated synthetic fixtures and need neither Portal A nor an API key.
-CI tests the installed package on Ubuntu. Use `uv sync --locked --no-editable` to reproduce that installation mode;
+CI tests a non-editable installed package on Ubuntu. Use `uv sync --locked --no-editable` to reproduce it;
 `uv sync --locked` restores editable development.
 
 ## Design
@@ -80,34 +72,43 @@ CI tests the installed package on Ubuntu. Use `uv sync --locked --no-editable` t
 **LLM proposes → validator checks → workflow authorizes → browser executes and verifies.**
 
 - Validate Section 4 rules before portal access. Preserve source facts, including missing, null, false and zero.
-- Bind only reviewed, unique field meanings. Unknown or ambiguous meanings require a human.
-- Use reviewed rules for known sign-in steps. Optional model proposals contain authorized references, never patient values,
-  credentials, arbitrary selectors or URLs.
-- Recheck the page and form destination, then read credentials back. Trust the portal origin and explicitly allowed
-  sign-in origins; permit only reviewed authentication POSTs.
-- Persist a case lock and write intents before Create/Send; reconcile uncertain Send from the same request's receipt.
-  See the [recovery design](docs/design/duplicate-recovery.md).
-- Bound and log actions, waits and model retries. Rejected proposals are not resampled, and planners never switch silently.
-- Keep private logs free of source values, credentials and raw model output. Record configuration and page fingerprints
-  so runs can be compared.
+- Enter a new patient only after an explicit no-match result. Verify all saved patient fields before Create.
+- Bind reviewed question wording and kinds to source fields. Unknown required meanings or missing answers escalate.
+- Evaluate conditional questions; type reviewed formats and verify both visible controls and persisted answers.
+- Keep optional unsupported answers blank. Prior-therapy classification uses a closed, reviewed configuration;
+  unfamiliar or absent evidence is not treated as a negative answer.
+- Keep model proposals free of patient values, credentials, arbitrary selectors and URLs.
+- Persist the case lock and Create/Send intents before allowing narrowly scoped browser writes.
+  Reconcile uncertain Send from the same request's explicit sent status and receipt.
+- Check for unexpected popups and blocked requests before attestation and again before Send.
+- Verify the exact attestation before Send. Validate the supplied NPI format; the inspected Portal A account
+  and attestation screens do not expose the account-to-NPI relationship, so it is not independently verified.
+- Keep logs free of source values, credentials and raw model output. Results retain the supplied facts used,
+  rather than substituting formatted portal values.
 
-[Validation rules](src/prior_auth_agent/config/validation.json) and
-[browser/model settings](src/prior_auth_agent/config/browser.json) and
-[recovery rules](src/prior_auth_agent/config/recovery.json) are reviewed configuration.
-Use `--config`, `--browser-config` or `--recovery-config` for complete replacements; `--as-of` fixes the DOB reference date.
+Reviewed [validation](src/prior_auth_agent/config/validation.json),
+[browser/model](src/prior_auth_agent/config/browser.json),
+[recovery](src/prior_auth_agent/config/recovery.json) and
+[workflow](src/prior_auth_agent/config/workflow.json) configuration can be replaced with the corresponding
+`--config`, `--browser-config`, `--recovery-config` and `--workflow-config` options.
 
 Recovery state defaults to `${XDG_STATE_HOME:-~/.local/state}/prior-auth-agent`, independently of output paths.
-`--state-dir` overrides it. Keep the same state directory across runs and preserve unresolved journals.
+`--state-dir` overrides it. Preserve the directory and unresolved journals across runs.
+An existing open request escalates by default. After operator review, `--resume-request <ID>` may continue only
+this case's journaled, unsent draft with unchanged input and freshly verified identity, answers and history.
+It cannot repeat Create or resume a pending Send. A verified completed case replays its saved result.
+After resetting a practice portal, use separate recovery state for that fresh test environment; keep the original journals.
 
-Live model generation and provider updates can vary. Matching repeats provide evidence for the tested scenario;
-they do not establish guaranteed determinism or unseen Portal B coverage.
+The adapter uses Portal A's observed browser controls and read endpoints. Changed APIs, unfamiliar layouts and
+unreviewed question wording can escalate on Portal B. Fixture repeatability is not evidence of unseen-portal
+coverage or full Portal A hard-case coverage.
 
 ## Layout
 
 ```text
 src/prior_auth_agent/   CLI, contracts and validation
-  agent/               Planner, proposals and workflow loop
-  browser/             Browser session and DOM observer
+  agent/               Planner, question decisions and recovery
+  browser/             Browser session, history and workflow adapter
   config/              Reviewed rules and limits
   storage/             JSON, private journals, results and logs
 tests/                 Unit/integration tests and synthetic fixtures

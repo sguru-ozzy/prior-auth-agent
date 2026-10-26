@@ -150,6 +150,7 @@ class RecoveryGuard:
         self.facts = copy.deepcopy(facts)
         self.log = log
         self.created_here = False
+        self.resume_authorized = False
         self.failed = False
 
     def __enter__(self) -> "RecoveryGuard":
@@ -259,14 +260,22 @@ class RecoveryGuard:
         self.created_here = True
         self.log.event("request_creation_verified")
 
-    def before_send(self, history: History, fields_filled: dict[str, JsonValue]) -> None:
+    def authorize_draft_resume(self, history: History, request_id: str) -> None:
         self._proof(history)
-        if self.journal.phase != "DRAFT" or not self.created_here:
-            raise state_problem("send_not_authorized", "Only this run's verified draft may proceed to Send.")
+        if self.journal.phase != "DRAFT" or self.journal.request_id != request_id:
+            raise state_problem(
+                "resume_not_authorized", "Only the explicitly selected, unsent journal draft may be continued."
+            )
+        self._check_draft(history)
+        self.resume_authorized = True
+        self.log.event("draft_resume_authorized", observation=digest(request_id))
+
+    def _check_draft(self, history: History) -> None:
         matching = [request for request in history.requests if request.request_id == self.journal.request_id]
         if (
             len(matching) != 1
             or matching[0].state != "open"
+            or matching[0].submitted
             or matching[0].confirmation_id
             or any(
                 request.state == "open" and request.request_id != self.journal.request_id
@@ -274,6 +283,14 @@ class RecoveryGuard:
             )
         ):
             raise state_problem("send_not_authorized", "The draft or its duplicate check is no longer safe to send.")
+
+    def before_send(self, history: History, fields_filled: dict[str, JsonValue]) -> None:
+        self._proof(history)
+        if self.journal.phase != "DRAFT" or not (self.created_here or self.resume_authorized):
+            raise state_problem(
+                "send_not_authorized", "Send requires this run's draft or an explicitly selected unsent draft."
+            )
+        self._check_draft(history)
         for field, value in fields_filled.items():
             try:
                 source = get_fact(self.facts, field)

@@ -1,0 +1,9 @@
+
+<button onclick="openSend()">OPEN_LABEL</button>
+<button role="tab" onclick="location.href='/requests/REQ-TEST'">Summary</button>
+<button role="tab" onclick="location.href='/requests/REQ-TEST/questions'">Questions</button>
+<dl>TERMS</dl><div id="dialog"></div><p id="error" role="alert"></p>
+<script>
+function openSend(){document.getElementById('dialog').innerHTML=MODAL;}
+async function send(){const payload={name:document.getElementById('name').value,attested:true};const r=await fetch('/api/requests/REQ-TEST/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(r.ok)location.href='/requests/REQ-TEST';else{document.getElementById('name').setAttribute('aria-invalid','true');document.getElementById('name').setAttribute('aria-describedby','error');document.getElementById('error').textContent=await r.text();}}
+</script>

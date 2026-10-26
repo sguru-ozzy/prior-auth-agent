@@ -1,9 +1,10 @@
-"""Bounded observe/propose/validate/authorize/execute loop with request writes disabled."""
+"""Bounded authentication followed by read-only inspection or a guarded request workflow."""
 
 import os
 import time
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 from playwright.sync_api import Error as BrowserError
 from pydantic import JsonValue, ValidationError
@@ -20,9 +21,11 @@ from prior_auth_agent.agent.proposals import (
     stop,
     validate_proposal,
 )
+from prior_auth_agent.agent.questions import load_workflow_settings
 from prior_auth_agent.agent.recovery import RecoveryGuard, load_recovery_settings
 from prior_auth_agent.browser.requests import RequestHistoryReader
 from prior_auth_agent.browser.session import OBSERVE_SCRIPT, PortalBrowser
+from prior_auth_agent.browser.workflow import RequestWorkflow
 from prior_auth_agent.contracts import Credentials, RunResult
 from prior_auth_agent.errors import InputProblem, Issue
 from prior_auth_agent.storage.audit import ActionLog
@@ -60,15 +63,25 @@ def inspect_portal(
     facts: dict[str, JsonValue],
     state_directory: Path,
     recovery_config: Path | None = None,
+    complete: bool = False,
+    workflow_config: Path | None = None,
+    resume_request: str | None = None,
 ) -> Issue | RunResult:
     settings = load_browser_settings(config_path)
     recovery_settings = load_recovery_settings(recovery_config)
+    workflow_settings = load_workflow_settings(workflow_config)
+    portal = urlsplit(portal_url)
+    auth_origins = sorted(
+        set(auth_origins + workflow_settings.auth_origins.get(portal.scheme + "://" + portal.netloc, []))
+    )
     log.event(
         "browser_configuration_loaded",
         configuration_digest=digest(
             {
                 "settings": settings.model_dump(),
                 "recovery": recovery_settings.model_dump(),
+                "workflow": workflow_settings.model_dump(),
+                "complete": complete,
                 "prompt": PROMPT,
                 "schema": Proposal.model_json_schema(),
                 "observer": OBSERVE_SCRIPT,
@@ -105,9 +118,31 @@ def inspect_portal(
                     "request_history_verified",
                     observation=digest([request.model_dump() for request in history.requests]),
                 )
-                result = guard.inspect(history)
-                if result is not None:
-                    return result
+                if resume_request is None:
+                    result = guard.inspect(history)
+                    if result is not None:
+                        return result
+                if complete:
+                    workflow = RequestWorkflow(browser, guard, workflow_settings, facts, log)
+                    try:
+                        if resume_request is not None:
+                            return workflow.resume(resume_request, history)
+                        return workflow.run()
+                    except (BrowserError, AssertionError, ValidationError):
+                        issue = Issue(
+                            "portal.workflow",
+                            "workflow_interrupted",
+                            "The browser was interrupted while completing the request; "
+                            "its write outcome may be unresolved.",
+                            "Preserve the case journal and inspect the existing request and action log. "
+                            "Do not repeat Create or Send. "
+                            "A verified unsent draft requires explicit operator continuation.",
+                        )
+                        log.event("workflow_escalated", issue=issue)
+                        return RunResult.from_issue(issue).model_copy(update={"fields_filled": workflow.fields})
+                    except InputProblem as error:
+                        log.event("workflow_escalated", issue=error.issue)
+                        return RunResult.from_issue(error.issue).model_copy(update={"fields_filled": workflow.fields})
                 return Issue(
                     "portal.workflow",
                     "request_writes_disabled",

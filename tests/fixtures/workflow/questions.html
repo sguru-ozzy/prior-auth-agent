@@ -1,0 +1,6 @@
+
+<style>.choice-wrap{position:relative}.choice-wrap input{position:absolute;inset:0;opacity:0}.choice-wrap label{position:relative}</style>
+<button onclick="save()">Save</button><p id="error" role="alert"></p>
+<script>
+async function save(){let answers={};for(const q of QUESTIONS){const element=q.kind==='radio'?document.querySelector('input[name="'+q.id+'"]:checked'):document.getElementById(q.id);answers[q.id]=element?element.value:'';}const r=await fetch('/api/requests/REQ-TEST/answers',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({answers})});if(!r.ok){document.getElementById('diagnosis').setAttribute('aria-invalid','true');document.getElementById('diagnosis').setAttribute('aria-describedby','error');document.getElementById('error').textContent=await r.text();}}
+</script>

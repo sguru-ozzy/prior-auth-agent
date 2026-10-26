@@ -73,7 +73,7 @@ def test_local_dotenv_is_protected_from_overwrite(
     assert keyfile.read_text() == "OPENAI_API_KEY=SYNTHETIC_KEY"
 
 
-def test_browser_options_require_explicit_inspection(tmp_path: Path, record: dict[str, JsonValue]) -> None:
+def test_browser_options_are_rejected_in_validation_only_mode(tmp_path: Path, record: dict[str, JsonValue]) -> None:
     with pytest.raises(SystemExit) as raised:
-        main(arguments(tmp_path, record) + ["--planner", "model"])
+        main(arguments(tmp_path, record) + ["--validate-only", "--planner", "model"])
     assert raised.value.code == 2

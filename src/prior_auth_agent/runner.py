@@ -9,6 +9,7 @@ from typing import Literal
 
 from prior_auth_agent.agent.inspection import inspect_portal
 from prior_auth_agent.agent.proposals import DEFAULT_BROWSER_SETTINGS
+from prior_auth_agent.agent.questions import DEFAULT_WORKFLOW_SETTINGS
 from prior_auth_agent.agent.recovery import DEFAULT_RECOVERY_SETTINGS
 from prior_auth_agent.contracts import RunResult
 from prior_auth_agent.errors import InputProblem, Issue
@@ -47,6 +48,9 @@ def run(
     planner: Literal["reviewed", "model"] = "reviewed",
     state_dir: Path | None = None,
     recovery_config: Path | None = None,
+    execute: bool = False,
+    workflow_config: Path | None = None,
+    resume_request: str | None = None,
 ) -> int:
     try:
         log_path = action_log_path(output)
@@ -62,6 +66,7 @@ def run(
                     config or DEFAULT_SETTINGS,
                     browser_config or DEFAULT_BROWSER_SETTINGS,
                     recovery_config or DEFAULT_RECOVERY_SETTINGS,
+                    workflow_config or DEFAULT_WORKFLOW_SETTINGS,
                     Path(__file__).resolve().parents[2] / "local" / "model.env",
                     Path(__file__).resolve().parents[2] / ".env",
                     Path.cwd() / ".env",
@@ -69,7 +74,9 @@ def run(
                 )
             ):
                 raise OSError("Artifact path aliases an input.")
-        if inspect and any(source.resolve().is_relative_to(state_directory) for source in (patient, credentials)):
+        if (inspect or execute) and any(
+            source.resolve().is_relative_to(state_directory) for source in (patient, credentials)
+        ):
             raise OSError("Inputs must not be stored as recovery journals.")
         if _same_path(output, log_path):
             raise OSError("Artifact paths must differ.")
@@ -97,7 +104,7 @@ def run(
             login = validate_credentials(load_object(credentials, "credentials", settings.max_input_bytes))
             log.event("credentials_validated")
             validate_url(portal_url)
-            if inspect:
+            if inspect or execute:
                 outcome = inspect_portal(
                     portal_url,
                     login,
@@ -108,6 +115,9 @@ def run(
                     facts,
                     state_directory,
                     recovery_config,
+                    execute,
+                    workflow_config,
+                    resume_request,
                 )
                 if isinstance(outcome, RunResult):
                     result = outcome
@@ -116,16 +126,16 @@ def run(
             else:
                 issue = Issue(
                     "portal.workflow",
-                    "workflow_unavailable",
-                    "Browser workflow is not implemented; no portal access was attempted.",
-                    "Complete the request manually, or rerun when the browser workflow is available.",
+                    "validation_only",
+                    "Local validation completed; no portal access was requested.",
+                    "Run without --validate-only to attempt the guarded portal workflow.",
                 )
                 log.event("portal_access_blocked", issue=issue)
         except InputProblem as error:
             issue = error.issue
             log.event(
                 "inspection_escalated"
-                if issue.field.startswith(("portal.", "model.", "browser.", "recovery.")) and inspect
+                if issue.field.startswith(("portal.", "model.", "browser.", "recovery.")) and (inspect or execute)
                 else "validation_rejected",
                 issue=issue,
             )
