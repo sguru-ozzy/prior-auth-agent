@@ -429,3 +429,38 @@ def test_nested_false_and_zero_are_not_interchangeable(
         with pytest.raises(InputProblem):
             current.before_send(history(record, RequestMatch(request_id="REQ-1", state="open")), {"clinical": clinical})
         assert current.journal.phase == "DRAFT"
+
+
+@pytest.mark.parametrize("phase", ["NEW", "CREATE_PENDING", "SEND_PENDING"])
+def test_explicit_resume_cannot_bypass_a_pending_write(
+    tmp_path: Path, record: dict[str, JsonValue], log: ActionLog, phase: str
+) -> None:
+    with guard(tmp_path, record, log) as current:
+        if phase == "CREATE_PENDING":
+            current.before_create(history(record))
+        elif phase == "SEND_PENDING":
+            sending(current)
+        with pytest.raises(InputProblem) as raised:
+            current.authorize_draft_resume(history(record, RequestMatch(request_id="REQ-1", state="open")), "REQ-1")
+        assert raised.value.issue.code == "resume_not_authorized"
+        assert current.journal.phase == phase
+
+
+@pytest.mark.parametrize("problem", ["different-id", "other-open", "stale", "receipt"])
+def test_explicit_resume_requires_fresh_unique_unsent_draft_evidence(
+    tmp_path: Path, record: dict[str, JsonValue], log: ActionLog, problem: str
+) -> None:
+    with guard(tmp_path, record, log) as current:
+        draft(current)
+    matches = [
+        RequestMatch(request_id="REQ-1", state="open", confirmation_id="QMS-EXISTS" if problem == "receipt" else None)
+    ]
+    if problem == "other-open":
+        matches.append(RequestMatch(request_id="OTHER", state="open"))
+    with guard(tmp_path, record, log) as restarted:
+        with pytest.raises(InputProblem):
+            restarted.authorize_draft_resume(
+                history(record, *matches, age=100 if problem == "stale" else 0),
+                "OTHER" if problem == "different-id" else "REQ-1",
+            )
+        assert restarted.journal.phase == "DRAFT" and not restarted.resume_authorized

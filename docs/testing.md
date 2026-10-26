@@ -13,11 +13,12 @@ No running portal or API key is needed.
   --patient tests/fixtures/patient.json \
   --credentials ../portal-a/examples/credentials.json \
   --out artifacts/preflight.json \
+  --validate-only \
   --as-of 2026-10-25
 ```
 
 Expected: `ESCALATED` at `portal.workflow`, with no portal access attempted.
-Browser inspection without a model is shown in the [README](../README.md#run).
+For read-only inspection, add --inspect-portal to the [README command](../README.md#run).
 
 ## Model inspection
 
@@ -120,3 +121,36 @@ or results/logs differ. To test reviewed rules,
 omit `--env-file .env` and change `--planner model` to `--planner reviewed`.
 
 Identical runs are evidence for this scenario, not a guarantee of future live-model behavior.
+
+## Complete workflow
+
+```bash
+uv run --no-sync pytest tests/unit/test_questions.py tests/unit/test_recovery.py tests/integration/test_workflow_cli.py
+```
+
+The fixture backend independently checks Create/Send intents, saved answers, exact source values, one-time writes,
+new-patient entry, field-specific validation messages, final safety checks, interrupted-draft continuation,
+lost-Send recovery and five identical runs from equivalent state.
+
+The fresh live Portal A verification used unchanged supplied P003 and the normal CLI, without a resume flag:
+
+```bash
+XDG_STATE_HOME="$PWD/artifacts/fresh-portal-20261025-final" ./run_agent \
+  --portal-url http://127.0.0.1:9463/dashboard \
+  --patient local/p003.json \
+  --credentials ../portal-a/examples/credentials.json \
+  --out artifacts/fresh-p003-final.json
+```
+
+Result: `SUCCESS`, `QMS-00001`. The log records one Create and one Send. A separate portal check confirms
+"Sent to plan" and exactly one Send. Evidence is in `artifacts/fresh-p003-final.portal.json` and
+`artifacts/fresh-p003-final.png`. All 254 local tests pass; the wheel and source distribution build.
+The required ten-case live hard-case report remains pending.
+
+Keep one recovery directory per portal environment. This run followed a user-approved fresh practice-server
+restart; original journals were preserved. Never switch state directories to bypass pending writes in the same
+environment. A completed case returns its persisted result without creating or sending again.
+
+Normal runs use the four required flags. An existing open request escalates. After operator review,
+`--resume-request <ID>` may continue only the journal's own unsent draft with unchanged input and freshly
+verified identity, answers and history. It cannot repeat Create or resume a pending Send.

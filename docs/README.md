@@ -6,6 +6,7 @@ the [testing guide](testing.md) covers additional CLI cases.
 
 ## Implementation designs
 
+- [Complete request workflow](design/complete-request.md)
 - [Duplicate protection and recovery](design/duplicate-recovery.md)
 
 ## PR decision records
@@ -15,6 +16,7 @@ the [testing guide](testing.md) covers additional CLI cases.
 - [PR 3: Guarded browser inspection](decisions/003-guarded-browser-inspection.md)
 - [PR 4: Documentation structure](decisions/004-documentation-structure.md)
 - [PR 5: Duplicate protection and recovery](decisions/005-duplicate-protection.md)
+- [PR 6: Complete request workflow](decisions/006-complete-workflow.md)
 
 Records for PRs 1–3 were written retrospectively from their merged changes and validation evidence.
 They describe those milestones; the source and configuration show current behavior.
