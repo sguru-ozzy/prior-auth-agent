@@ -34,6 +34,7 @@ class WorkflowSettings(StrictModel):
     new_patient_fields: dict[str, str]
     state_option_pattern: str
     patient_search_query_key: str = Field(min_length=1)
+    patient_search_echo_format: Literal["exact", "casefold"] = "exact"
     label_aliases: dict[str, list[str]] = Field(default_factory=dict)
     field_aliases: dict[str, list[str]] = Field(default_factory=dict)
     question_rules: list[QuestionRule]

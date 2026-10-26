@@ -267,7 +267,23 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
                 controls += "</div>"
             else:
                 input_type = ' type="number"' if scenario == "alternate-layout" and question["kind"] == "number" else ""
-                controls += "<label>" + text + "<input" + input_type + ' id="' + key + '"></label>'
+                if scenario == "accessible-question-label":
+                    controls += (
+                        '<span id="'
+                        + key
+                        + '-label">'
+                        + text
+                        + '<span aria-hidden="true"> *</span></span>'
+                        + "<input"
+                        + input_type
+                        + ' id="'
+                        + key
+                        + '" aria-labelledby="'
+                        + key
+                        + '-label">'
+                    )
+                else:
+                    controls += "<label>" + text + "<input" + input_type + ' id="' + key + '"></label>'
         return (
             '<h1>REQ-TEST Draft</h1><button role="tab">Questions</button>'
             + controls
@@ -434,7 +450,7 @@ def portal(record: dict[str, JsonValue], scenario: str = "") -> Iterator[tuple[s
                 results = [] if scenario in ("new-patient", "new-patient-mismatch", "alternate-layout") else [patient]
                 if scenario == "ambiguous-patient":
                     results = [patient, patient]
-                self.json({"query": "OLD_QUERY" if scenario == "stale-query" else query, "results": results})
+                self.json({"query": "OLD_QUERY" if scenario == "stale-query" else query.lower(), "results": results})
             elif path == "/api/wizard":
                 self.json({"draft": state["wizard"]})
             elif path == "/api/requests/REQ-TEST":
@@ -810,6 +826,7 @@ def test_ambiguous_patient_search_never_enters_a_new_patient_or_creates_a_reques
         "history-countdown",
         "known-overlay",
         "alternate-layout",
+        "accessible-question-label",
     ],
 )
 def test_reviewed_variations_complete_without_repeating_writes(
@@ -858,3 +875,35 @@ def test_send_throttling_is_never_retried_even_on_a_new_invocation(
         assert json.loads((tmp_path / "result.json").read_text())["status"] == "ESCALATED"
         assert main(args) == 0
         assert state["send_attempts"] == 1 and state["sends"] == 0
+
+
+def test_query_echo_comparison_uses_only_the_reviewed_format(tmp_path: Path, record: dict[str, JsonValue]) -> None:
+    config = json.loads((Path(__file__).resolve().parents[2] / "src/prior_auth_agent/config/workflow.json").read_text())
+    config["patient_search_echo_format"] = "exact"
+    path = tmp_path / "workflow.json"
+    path.write_text(json.dumps(config))
+    with portal(record) as (url, state):
+        assert main([*arguments(tmp_path, record, url), "--workflow-config", str(path)]) == 0
+        result = json.loads((tmp_path / "result.json").read_text())
+        assert result["status"] == "ESCALATED" and result["escalation"]["field"] == "patient.member_id"
+        assert state["creates"] == state["sends"] == 0
+
+
+def test_open_request_is_blocked_for_a_client_without_local_state(
+    tmp_path: Path, record: dict[str, JsonValue], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with portal(record) as (url, state):
+        args = arguments(tmp_path, record, url)
+        assert main(args) == 0
+        assert json.loads((tmp_path / "result.json").read_text())["status"] == "SUCCESS"
+        original = Path(os.environ["XDG_STATE_HOME"])
+        journals = {path: path.read_bytes() for path in original.rglob("*.json")}
+        monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "independent-client"))
+        assert main(args) == 0
+        result = json.loads((tmp_path / "result.json").read_text())
+        assert result["status"] == "ESCALATED" and result["escalation"]["field"] == "portal.request"
+        assert state["creates"] == state["sends"] == 1
+        assert all(path.read_bytes() == content for path, content in journals.items())
+        events = (tmp_path / "result.actions.jsonl").read_text()
+        assert '"event": "create_intent_persisted"' not in events
+        assert '"event": "send_intent_persisted"' not in events

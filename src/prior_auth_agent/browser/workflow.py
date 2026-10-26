@@ -63,7 +63,10 @@ class RequestWorkflow:
             "input:not([type]),input[type=text],input[type=search],input[type=date],"
             "input[type=number],input[type=email],input[type=tel],textarea"
         )
-        return inputs.and_(scope.get_by_label(name, exact=True))
+        labelled = scope.get_by_label(name, exact=True)
+        for role in ("textbox", "combobox", "spinbutton"):
+            labelled = labelled.or_(scope.get_by_role(role, name=name, exact=True))
+        return inputs.and_(labelled)
 
     def read(self, name: str, params: dict[str, str] | None = None) -> dict[str, JsonValue]:
         url = self.base + self.path(name)
@@ -214,11 +217,13 @@ class RequestWorkflow:
         self.search(search, query, "patient.member_id", "patient_search", self.settings.patient_search_query_key)
         response = self.read("patient_search", {self.settings.patient_search_query_key: query})
         results = response.get("results")
-        if (
-            response.get("query") != query
-            or not isinstance(results, list)
-            or not all(isinstance(row, dict) for row in results)
-        ):
+        echo = response.get("query")
+        echo_matches = isinstance(echo, str) and (
+            echo.casefold() == query.casefold()
+            if self.settings.patient_search_echo_format == "casefold"
+            else echo == query
+        )
+        if not echo_matches or not isinstance(results, list) or not all(isinstance(row, dict) for row in results):
             raise stop(
                 "patient_search_unverified",
                 "Patient search results cannot be tied to the current query.",

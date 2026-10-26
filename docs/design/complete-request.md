@@ -10,7 +10,8 @@
 - Attest only with the supplied name after final review. Verify the same request's explicit sent status and confirmation, then persist the outcome.
 - Keep fixture evidence separate from live results. Portal B API/layout changes and unreviewed question meanings remain conservative escalations.
 
-The first implementation targets one clean Portal A request. Full hard-case coverage and assignment-level evaluation follow.
+The implementation began with one clean Portal A request. See the [current evaluation](../../evals/results/README.md)
+for supported cases and remaining completion gaps.
 
 ## Prescriber and attestation
 
@@ -44,4 +45,4 @@ the subscriber's state employee ID, attested and sent once. A separate read-only
 Artifacts: `artifacts/fresh-p003-final.json`, its action log, `artifacts/fresh-p003-final.portal.json` and
 `artifacts/fresh-p003-final.png`. They are private and ignored by Git. The earlier P002 confirmation and stopped
 intake journals were preserved before the user-approved portal restart; the fresh environment uses separate state.
-The 254 isolated tests pass, including five identical fixture runs. Live hard cases and unseen Portal B remain unverified.
+The [current evaluation](../../evals/results/README.md) records expanded tests and live scenarios. Portal B remains unverified.

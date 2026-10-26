@@ -3,7 +3,8 @@
 ## Search evidence
 
 Wait for the UI search's successful GET with the exact reviewed origin, endpoint and query. Do not use visible
-“No matches” as proof. Confirm the patient search through a separate read whose response echoes that query.
+“No matches” as proof. Confirm the patient search through a separate read whose response echoes that query. Portal A lowercases its
+query echo; accept only that configured comparison format. Patient source values and saved identity stay exact.
 An empty result permits new-patient entry; one result must match every supplied identity field. Multiple results,
 wrong query echoes and mismatches escalate. Verify the saved patient again before Create.
 
@@ -36,4 +37,4 @@ establish coverage of the unseen Portal B.
 A live throttled history scan exercised three retries across reads and stopped before exceeding the run budget,
 with no request writes. Sustained throttling or a long scan can still exceed the run or evidence-freshness budget;
 those cases escalate. Reduce required history reads before considering wider budgets, and retain complete duplicate
-checks. The required live scenario evaluation remains outstanding.
+checks. The [current evaluation](../../evals/results/README.md) records live scenario outcomes and remaining completion gaps.

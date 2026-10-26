@@ -2,9 +2,9 @@
 
 A controlled browser agent for the Lamar Health prior authorization exercise.
 
-**Status:** the normal CLI completed a fresh live Portal A run for supplied P003, including new-patient entry,
-saved answers, full-name attestation and verified confirmation `QMS-00001`. The log records one Create;
-the portal independently confirms one Send. All 286 isolated tests pass. Full hard-case evaluation remains pending.
+**Status:** all three supplied clean Portal A records complete, including three identical fresh P003 runs.
+All **307 isolated tests** pass. The evaluation has **45/51 runs meeting expectations**;
+6 scenarios still escalate. See the [results and limits](evals/results/README.md).
 
 [Design and decisions](docs/README.md) · [CLI testing guide](docs/testing.md)
 
@@ -66,6 +66,8 @@ uv build --no-sources
 Tests use isolated synthetic fixtures and need neither Portal A nor an API key.
 CI tests a non-editable installed package on Ubuntu. Use `uv sync --locked --no-editable --reinstall-package prior-auth-agent` to reproduce it;
 `uv sync --locked` restores editable development.
+
+For opt-in live case reports and full-workflow repeatability, see [assignment evaluation](docs/testing.md#assignment-evaluation).
 
 ## Design
 
