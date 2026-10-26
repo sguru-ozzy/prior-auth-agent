@@ -38,8 +38,9 @@ cat artifacts/inspect-model.json
 cat artifacts/inspect-model.actions.jsonl
 ```
 
-Expected: four `model_requested` events when no retries are needed, four verified sign-in actions and
-`inspection_complete`. The result is `ESCALATED` at `portal.workflow` because request writes are disabled.
+Expected for a clean case: four model requests when no retries are needed, verified sign-in,
+`request_history_verified` and `duplicate_check_clear`. The result is `ESCALATED` at `portal.workflow`
+because request writes are disabled. Existing open requests escalate at `portal.request`.
 A missing key or rejected proposal escalates without switching models or planners.
 
 ## Invalid record
@@ -70,6 +71,23 @@ PYTHON
 Expected: `ESCALATED` at `patient.member_id`, with the required format and correction.
 The log records `validation_rejected` before credentials, browser or model access.
 
+## Duplicate and recovery safeguards
+
+```bash
+uv run --no-sync pytest \
+  tests/unit/test_recovery.py \
+  tests/integration/test_recovery_cli.py \
+  tests/integration/test_request_history.py
+```
+
+These tests cover process locks/crashes, pending Create/Send, complete history, open duplicates, receipt recovery,
+changed source facts, corrupt/private state and replay to a different output path. Browser fixtures simulate
+submission history; they do not create or send a request in Portal A.
+
+For a read-only Portal A check, use the [README command](../README.md#run). Recovery uses a private user state
+directory by default. Keep it across runs; changing `--out` does not start a new case.
+Use `--state-dir <directory>` to select a separate synthetic test environment, not to bypass pending state.
+
 ## Repeatability
 
 Run the five-repeat preflight and fixture-browser checks without Portal A or an API key.
@@ -97,7 +115,8 @@ uv run --env-file .env --no-sync python evals/inspect_repeatability.py \
 ```
 
 Expected: `passed: true`, `all_inspections_complete: true`, `identical_results_and_logs: true`.
-The evaluator exits **1** if an inspection is incomplete or results/logs differ. To test reviewed rules,
+The evaluator requires both sign-in and verified request-history inspection. It exits **1** if either is incomplete
+or results/logs differ. To test reviewed rules,
 omit `--env-file .env` and change `--planner model` to `--planner reviewed`.
 
 Identical runs are evidence for this scenario, not a guarantee of future live-model behavior.

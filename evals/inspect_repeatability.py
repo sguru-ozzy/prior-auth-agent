@@ -15,6 +15,7 @@ def main() -> int:
     parser.add_argument("--credentials", type=Path, required=True)
     parser.add_argument("--out-dir", type=Path, required=True)
     parser.add_argument("--auth-origin", action="append", default=[])
+    parser.add_argument("--state-dir", type=Path)
     parser.add_argument("--planner", choices=("reviewed", "model"), default="reviewed")
     parser.add_argument("--as-of", type=date.fromisoformat, required=True)
     parser.add_argument("--repeats", type=int, default=5)
@@ -35,13 +36,17 @@ def main() -> int:
             inspect=True,
             auth_origins=arguments.auth_origin,
             planner=arguments.planner,
+            state_dir=arguments.state_dir,
         )
         if code != 0:
             print(json.dumps({"passed": False, "problem": "Run artifacts could not be written."}))
             return 1
         log = action_log_path(output).read_bytes()
         events = [json.loads(line) for line in log.splitlines()]
-        complete = complete and any(event["event"] == "inspection_complete" for event in events)
+        complete = complete and all(
+            any(event["event"] == required for event in events)
+            for required in ("inspection_complete", "request_history_verified")
+        )
         model_calls += sum(event["event"] == "model_requested" for event in events)
         observed.append((output.read_bytes(), log))
     identical = all(pair == observed[0] for pair in observed)

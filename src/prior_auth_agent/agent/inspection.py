@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Literal
 
 from playwright.sync_api import Error as BrowserError
+from pydantic import JsonValue, ValidationError
 
 from prior_auth_agent.agent.planner import PROMPT, ModelPlanner, Planner, ReviewedPlanner, TransportProblem
 from prior_auth_agent.agent.proposals import (
@@ -19,8 +20,10 @@ from prior_auth_agent.agent.proposals import (
     stop,
     validate_proposal,
 )
+from prior_auth_agent.agent.recovery import RecoveryGuard, load_recovery_settings
+from prior_auth_agent.browser.requests import RequestHistoryReader
 from prior_auth_agent.browser.session import OBSERVE_SCRIPT, PortalBrowser
-from prior_auth_agent.contracts import Credentials
+from prior_auth_agent.contracts import Credentials, RunResult
 from prior_auth_agent.errors import InputProblem, Issue
 from prior_auth_agent.storage.audit import ActionLog
 
@@ -54,13 +57,18 @@ def inspect_portal(
     auth_origins: list[str],
     config_path: Path | None,
     planner_kind: Literal["reviewed", "model"],
-) -> Issue:
+    facts: dict[str, JsonValue],
+    state_directory: Path,
+    recovery_config: Path | None = None,
+) -> Issue | RunResult:
     settings = load_browser_settings(config_path)
+    recovery_settings = load_recovery_settings(recovery_config)
     log.event(
         "browser_configuration_loaded",
         configuration_digest=digest(
             {
                 "settings": settings.model_dump(),
+                "recovery": recovery_settings.model_dump(),
                 "prompt": PROMPT,
                 "schema": Proposal.model_json_schema(),
                 "observer": OBSERVE_SCRIPT,
@@ -71,27 +79,46 @@ def inspect_portal(
     )
     deadline = time.monotonic() + settings.run_seconds
     model: ModelPlanner | None = None
-    planner: Planner = ReviewedPlanner()
-    if planner_kind == "model":
-        api_key = os.environ.get("OPENAI_API_KEY", "")
-        if not api_key:
-            raise stop(
-                "model_key_missing",
-                "OPENAI_API_KEY is not configured.",
-                "Set the API key locally; do not put it in the patient file or action log.",
-                "model.configuration",
-            )
-        model = ModelPlanner(settings, api_key)
-        planner = model
     try:
-        with PortalBrowser(portal_url, auth_origins, settings, deadline) as browser:
-            return inspection_loop(browser, planner, settings, credentials, log, planner_kind == "model", deadline)
-    except BrowserError:
-        # Playwright exception strings may contain filled values, URLs and DOM fragments.
+        with RecoveryGuard(state_directory, portal_url, credentials, facts, recovery_settings, log) as guard:
+            cached = guard.cached_outcome()
+            if cached is not None:
+                return cached
+            planner: Planner = ReviewedPlanner()
+            if planner_kind == "model":
+                api_key = os.environ.get("OPENAI_API_KEY", "")
+                if not api_key:
+                    raise stop(
+                        "model_key_missing",
+                        "OPENAI_API_KEY is not configured.",
+                        "Set the API key locally; do not put it in patient files or logs.",
+                        "model.configuration",
+                    )
+                model = ModelPlanner(settings, api_key)
+                planner = model
+            with PortalBrowser(portal_url, auth_origins, settings, deadline) as browser:
+                inspection_loop(browser, planner, settings, credentials, log, planner_kind == "model", deadline)
+                history = RequestHistoryReader(browser, recovery_settings.history, log).read(
+                    facts, guard.journal.case_key, guard.journal.request_id
+                )
+                log.event(
+                    "request_history_verified",
+                    observation=digest([request.model_dump() for request in history.requests]),
+                )
+                result = guard.inspect(history)
+                if result is not None:
+                    return result
+                return Issue(
+                    "portal.workflow",
+                    "request_writes_disabled",
+                    "Sign-in and duplicate checks completed; request creation and submission remain disabled.",
+                    "Continue with the request workflow milestone, or complete the request manually.",
+                )
+    except (BrowserError, AssertionError, ValidationError):
         raise stop(
             "browser_interrupted",
             "The browser could not complete the reviewed inspection step.",
-            "Check browser installation, portal availability and sign-in before rerunning.",
+            "Check portal access and request history before continuing; do not repeat a pending write.",
             "portal.access",
         ) from None
     finally:

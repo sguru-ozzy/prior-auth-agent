@@ -79,7 +79,7 @@ def load_object(path: Path, field: str, max_bytes: int) -> dict[str, JsonValue]:
     return document
 
 
-def write_atomic(path: Path, content: str) -> None:
+def write_atomic(path: Path, content: str, *, durable: bool = False) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     temporary: Path | None = None
     try:
@@ -91,6 +91,12 @@ def write_atomic(path: Path, content: str) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
+        if durable:
+            descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
