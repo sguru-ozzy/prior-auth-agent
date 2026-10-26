@@ -24,6 +24,22 @@ output.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
 PY
 ```
 
+## Portal A without model calls
+
+This is the assignment's four-argument interface. The recognized Portal A profile uses reviewed rules;
+no API key is needed. To guarantee that adapter, append `--adapter reviewed`.
+
+```bash
+./run_agent \
+  --portal-url http://127.0.0.1:9463/dashboard \
+  --patient local/patient.json \
+  --credentials ../portal-a/examples/credentials.json \
+  --out artifacts/result.json
+```
+
+For a model-assisted regular run, use the [README command](../README.md#run), which loads `.env` and
+adds `--planner model`. Its LLM scope on Portal A is sign-in only; later task steps remain code-driven.
+
 ## Semantic browser workflow
 
 Start Portal A, then run from the agent repository. Configure the key in `.env` first; substitute
@@ -35,11 +51,16 @@ uv run --env-file .env --no-sync ./run_agent \
   --patient local/patient.json \
   --credentials ../portal-a/examples/credentials.json \
   --out artifacts/semantic-result.json \
-  --adapter semantic
+  --adapter semantic \
+  --planner model
 ```
 
-The action log should identify `portal_adapter_selected` with `action: semantic`. Without a key, omit
-the `uv run --env-file .env --no-sync` prefix to use deterministic candidate selection.
+The action log should identify `portal_adapter_selected` with `action: semantic`. `--planner model` requires
+a configured key. `semantic_model_requested` records actual semantic model calls; a single authorized action
+or a cached proposal may require no call. `model_requested` records calls during reviewed sign-in if that path is used.
+
+For rule-based semantic selection, omit the environment-loading prefix and `--planner model`, and run with
+`OPENAI_API_KEY` unset. An available exported key otherwise enables semantic model planning automatically.
 This exercises the new execution path on Portal A; it does not establish Portal B coverage or guarantee completion.
 
 Use an unused supplied clean record to exercise the browser. A locally completed case replays its saved
@@ -61,7 +82,8 @@ No running portal or API key is needed.
 ```
 
 Expected: `ESCALATED` at `portal.workflow`, with no portal access attempted.
-For read-only inspection, add `--inspect-portal` to the [README command](../README.md#run).
+For read-only inspection without model calls, add `--inspect-portal` to the
+[rule-based Portal A command](#portal-a-without-model-calls).
 
 ## Model inspection
 
@@ -128,7 +150,8 @@ These tests cover process locks/crashes, pending Create/Send, complete history, 
 changed source facts, corrupt/private state and replay to a different output path. Browser fixtures simulate
 submission history; they do not create or send a request in Portal A.
 
-For a read-only Portal A check, use the [README command](../README.md#run). Recovery uses a private user state
+For a read-only Portal A check, append `--inspect-portal` to the
+[rule-based Portal A command](#portal-a-without-model-calls). Recovery uses a private user state
 directory by default. Keep it across runs; changing `--out` does not start a new case.
 Use `--state-dir <directory>` to select a separate synthetic test environment, not to bypass pending state.
 

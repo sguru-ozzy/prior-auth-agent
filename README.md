@@ -25,6 +25,10 @@ On Linux, install Chromium with `uv run --no-sync playwright install --with-deps
 The launcher uses `.venv`; dependencies are pinned in `uv.lock`. Portal A needs its own environment,
 installed according to the supplied portal README.
 
+For the model-assisted commands below, copy `.env.example` to the ignored `.env`, set its permissions
+to `600`, and enter `OPENAI_API_KEY` in your editor. Keep your existing environment file if already configured.
+If your key is in `local/model.env`, substitute that path for `.env` in the commands.
+
 ## Run
 
 In a separate terminal, starting from the agent repository:
@@ -37,21 +41,29 @@ cd ../portal-a
 If the portal is already running, reuse it. Put **one supplied patient JSON object** in `local/patient.json`;
 the supplied `sample_patients.json` is an array. See [prepare a patient](docs/testing.md#prepare-a-patient).
 
-Back in the agent repository, run the assignment interface:
+Back in the agent repository, run Portal A with model-assisted sign-in:
 
 ```bash
-./run_agent \
+uv run --env-file .env --no-sync ./run_agent \
   --portal-url http://127.0.0.1:9463/dashboard \
   --patient local/patient.json \
   --credentials ../portal-a/examples/credentials.json \
-  --out artifacts/result.json
+  --out artifacts/result.json \
+  --planner model
 
 cat artifacts/result.json
 cat artifacts/result.actions.jsonl
 ```
 
-The default flow validates, signs in, checks duplicates, selects or enters the patient, matches the
-medication and plan, answers supported questions, attests with the supplied name, and sends once.
+`uv run --env-file .env` loads the key; `--planner model` enables LLM proposals during reviewed sign-in.
+Patient matching, question answers, validation and submission remain code-driven on this adapter.
+Loading `.env` without `--planner model` does not enable the LLM on the reviewed Portal A path.
+
+For the required four-argument interface without model calls, remove the `uv run --env-file .env --no-sync`
+prefix and `--planner model`. See the [copyable command](docs/testing.md#portal-a-without-model-calls).
+
+Both modes validate, sign in, check duplicates, select or enter the patient, match the medication and plan,
+answer supported questions, attest with the supplied name, and send once.
 
 Read the result's `status`:
 
@@ -70,14 +82,26 @@ The action log is `<output-name>.actions.jsonl`. Reusing an output path replaces
 - `--adapter semantic`: force the browser path that reads controls without Portal A endpoints.
 - `--validate-only`: validate locally. `--inspect-portal`: sign in and check history without request writes.
 
-Portal A's default path needs no API key. On the semantic path, an exported `OPENAI_API_KEY` enables
-constrained planning throughout the workflow; without it, candidate selection uses stable rules.
-`--planner model` also requires model proposals during reviewed sign-in.
+For model-assisted planning across the semantic workflow, use:
 
-For model access, copy `.env.example` to the ignored `.env`, set permissions to `600`, and enter the key in
-your editor. Load it explicitly with `uv run --env-file .env --no-sync ./run_agent ...`.
-If your key is already in `local/model.env`, use that file instead.
-See the [complete semantic command](docs/testing.md#semantic-browser-workflow).
+```bash
+uv run --env-file .env --no-sync ./run_agent \
+  --portal-url http://127.0.0.1:9463/dashboard \
+  --patient local/patient.json \
+  --credentials ../portal-a/examples/credentials.json \
+  --out artifacts/semantic-result.json \
+  --adapter semantic \
+  --planner model
+```
+
+Both model-assisted commands above require a configured API key. `--planner model` makes a missing key
+an explicit escalation rather than silently selecting rules. On the semantic path, the LLM chooses among
+code-authorized candidates; single-candidate actions and cached plans need no model call. Code owns values,
+validation, permissions and outcomes.
+
+Without `--planner model`, the reviewed Portal A path uses rules and needs no key. The semantic path uses
+an available exported key automatically; without one, it uses stable candidate selection. A completed case
+can replay its saved outcome before either path calls a model. See the [CLI guide](docs/testing.md) for details.
 
 ## Test and evaluate
 
@@ -93,7 +117,8 @@ The [live evaluator](docs/testing.md#assignment-evaluation) starts and stops fre
 stop the development portal first. It checks portal records independently, repeatability and duplicate protection.
 
 The earlier full evaluation met **45 of 51** run expectations; six hard cases still escalated.
-The latest live regression pass covered the clean records. See the linked reports for scope and limitations.
+The latest live regression pass covered the clean records using reviewed rules, without live model calls.
+The new full semantic path remains unverified. See the linked reports for scope and limitations.
 
 ## Design and recovery
 
