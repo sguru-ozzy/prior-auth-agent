@@ -21,7 +21,9 @@ def settings() -> Settings:
 
 
 @pytest.fixture(autouse=True)
-def forbid_network(monkeypatch: pytest.MonkeyPatch) -> None:
+def forbid_network(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "user-state"))
+
     def reject_connection(*args: object, **kwargs: object) -> None:
         raise AssertionError("Tests must not contact an external portal or model.")
 

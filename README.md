@@ -2,8 +2,9 @@
 
 A controlled browser agent for the Lamar Health prior authorization exercise.
 
-**Current scope:** validate one record, sign in and observe the dashboard. Request creation, patient answers,
-attestation and Send are not implemented. Successful inspection returns `ESCALATED`.
+**Current scope:** validate one record, sign in, check existing requests and reconcile saved outcomes.
+New requests, patient answers, attestation and Send remain disabled. A clean inspection returns `ESCALATED`;
+recovery can return a previously verified outcome.
 
 [Design and decisions](docs/README.md) · [CLI testing guide](docs/testing.md)
 
@@ -50,8 +51,9 @@ cat artifacts/inspect.json
 cat artifacts/inspect.actions.jsonl
 ```
 
-Expected: four verified sign-in actions and `inspection_complete` in the log, followed by `ESCALATED`
-at `portal.workflow` because request writes are disabled. No confirmation ID or patient fields are returned.
+Expected for the supplied clean fixture: sign-in, `request_history_verified` and `duplicate_check_clear`,
+then `ESCALATED` at `portal.workflow` because request writes are disabled.
+An existing open request instead escalates at `portal.request`.
 
 The default command runs local validation only. Without `--inspect-portal`, omit `--auth-origin` too.
 See the [testing guide](docs/testing.md) for complete preflight, model, invalid-record and repeatability commands.
@@ -83,13 +85,19 @@ CI tests the installed package on Ubuntu. Use `uv sync --locked --no-editable` t
   credentials, arbitrary selectors or URLs.
 - Recheck the page and form destination, then read credentials back. Trust the portal origin and explicitly allowed
   sign-in origins; permit only reviewed authentication POSTs.
+- Persist a case lock and write intents before Create/Send; reconcile uncertain Send from the same request's receipt.
+  See the [recovery design](docs/design/duplicate-recovery.md).
 - Bound and log actions, waits and model retries. Rejected proposals are not resampled, and planners never switch silently.
 - Keep private logs free of source values, credentials and raw model output. Record configuration and page fingerprints
   so runs can be compared.
 
 [Validation rules](src/prior_auth_agent/config/validation.json) and
-[browser/model settings](src/prior_auth_agent/config/browser.json) are reviewed configuration;
-`--config` and `--browser-config` select complete replacements. `--as-of` fixes the DOB reference date.
+[browser/model settings](src/prior_auth_agent/config/browser.json) and
+[recovery rules](src/prior_auth_agent/config/recovery.json) are reviewed configuration.
+Use `--config`, `--browser-config` or `--recovery-config` for complete replacements; `--as-of` fixes the DOB reference date.
+
+Recovery state defaults to `${XDG_STATE_HOME:-~/.local/state}/prior-auth-agent`, independently of output paths.
+`--state-dir` overrides it. Keep the same state directory across runs and preserve unresolved journals.
 
 Live model generation and provider updates can vary. Matching repeats provide evidence for the tested scenario;
 they do not establish guaranteed determinism or unseen Portal B coverage.
@@ -101,7 +109,7 @@ src/prior_auth_agent/   CLI, contracts and validation
   agent/               Planner, proposals and workflow loop
   browser/             Browser session and DOM observer
   config/              Reviewed rules and limits
-  storage/             JSON, results and action logs
+  storage/             JSON, private journals, results and logs
 tests/                 Unit/integration tests and synthetic fixtures
 evals/                 Opt-in live repeatability checks
 docs/                  Testing guide and PR decision records

@@ -9,9 +9,11 @@ from typing import Literal
 
 from prior_auth_agent.agent.inspection import inspect_portal
 from prior_auth_agent.agent.proposals import DEFAULT_BROWSER_SETTINGS
+from prior_auth_agent.agent.recovery import DEFAULT_RECOVERY_SETTINGS
 from prior_auth_agent.contracts import RunResult
 from prior_auth_agent.errors import InputProblem, Issue
 from prior_auth_agent.storage.audit import ActionLog
+from prior_auth_agent.storage.journal import default_state_dir
 from prior_auth_agent.storage.jsonio import load_object, write_atomic
 from prior_auth_agent.validation import (
     DEFAULT_SETTINGS,
@@ -43,10 +45,15 @@ def run(
     auth_origins: list[str] | None = None,
     browser_config: Path | None = None,
     planner: Literal["reviewed", "model"] = "reviewed",
+    state_dir: Path | None = None,
+    recovery_config: Path | None = None,
 ) -> int:
     try:
         log_path = action_log_path(output)
+        state_directory = (state_dir or default_state_dir()).expanduser().resolve()
         for target in (output, log_path):
+            if target.resolve().is_relative_to(state_directory):
+                raise OSError("Output artifacts must not overwrite recovery state.")
             if any(
                 _same_path(target, source)
                 for source in (
@@ -54,6 +61,7 @@ def run(
                     credentials,
                     config or DEFAULT_SETTINGS,
                     browser_config or DEFAULT_BROWSER_SETTINGS,
+                    recovery_config or DEFAULT_RECOVERY_SETTINGS,
                     Path(__file__).resolve().parents[2] / "local" / "model.env",
                     Path(__file__).resolve().parents[2] / ".env",
                     Path.cwd() / ".env",
@@ -61,6 +69,8 @@ def run(
                 )
             ):
                 raise OSError("Artifact path aliases an input.")
+        if inspect and any(source.resolve().is_relative_to(state_directory) for source in (patient, credentials)):
+            raise OSError("Inputs must not be stored as recovery journals.")
         if _same_path(output, log_path):
             raise OSError("Artifact paths must differ.")
     except (OSError, RuntimeError, ValueError):
@@ -72,6 +82,8 @@ def run(
     try:
         log = ActionLog(log_path)
         log.event("run_started", reference_date=reference_date)
+        result: RunResult | None = None
+        issue: Issue | None = None
         try:
             settings = load_settings(config)
             configuration_digest = hashlib.sha256(
@@ -86,7 +98,21 @@ def run(
             log.event("credentials_validated")
             validate_url(portal_url)
             if inspect:
-                issue = inspect_portal(portal_url, login, log, auth_origins or [], browser_config, planner)
+                outcome = inspect_portal(
+                    portal_url,
+                    login,
+                    log,
+                    auth_origins or [],
+                    browser_config,
+                    planner,
+                    facts,
+                    state_directory,
+                    recovery_config,
+                )
+                if isinstance(outcome, RunResult):
+                    result = outcome
+                else:
+                    issue = outcome
             else:
                 issue = Issue(
                     "portal.workflow",
@@ -99,11 +125,13 @@ def run(
             issue = error.issue
             log.event(
                 "inspection_escalated"
-                if issue.field.startswith(("portal.", "model.", "browser.")) and inspect
+                if issue.field.startswith(("portal.", "model.", "browser.", "recovery.")) and inspect
                 else "validation_rejected",
                 issue=issue,
             )
-        result = RunResult.from_issue(issue)
+        if result is None:
+            assert issue is not None
+            result = RunResult.from_issue(issue)
         log.event("outcome_selected", issue=issue, status=result.status)
     except OSError:
         result = RunResult.from_issue(

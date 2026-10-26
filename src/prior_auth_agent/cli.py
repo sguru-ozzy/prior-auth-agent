@@ -55,9 +55,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         default="reviewed",
         help="Reviewed authentication rules or constrained live-model proposals.",
     )
+    parser.add_argument(
+        "--state-dir", type=Path, help="Private recovery directory; defaults to the user state directory."
+    )
+    parser.add_argument("--recovery-config", type=Path, help="Complete reviewed duplicate/recovery configuration.")
     arguments = parser.parse_args(argv)
     if not arguments.inspect_portal and (
-        arguments.auth_origin or arguments.browser_config or arguments.planner != "reviewed"
+        arguments.auth_origin
+        or arguments.browser_config
+        or arguments.planner != "reviewed"
+        or arguments.state_dir
+        or arguments.recovery_config
     ):
         parser.error("Browser options require --inspect-portal.")
     return run(
@@ -71,4 +79,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         arguments.auth_origin,
         arguments.browser_config,
         arguments.planner,
+        arguments.state_dir,
+        arguments.recovery_config,
     )

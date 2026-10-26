@@ -2,6 +2,7 @@
 
 import json
 import os
+import stat
 from datetime import date
 from pathlib import Path
 from typing import TextIO
@@ -12,8 +13,12 @@ from prior_auth_agent.errors import Issue
 class ActionLog:
     def __init__(self, path: Path) -> None:
         path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
         try:
+            metadata = os.fstat(descriptor)
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1 or metadata.st_uid != os.geteuid():
+                raise OSError("Action log must be an owned regular file without hard links.")
+            os.ftruncate(descriptor, 0)
             os.fchmod(descriptor, 0o600)
             self._stream: TextIO = os.fdopen(descriptor, "w", encoding="utf-8")
         except BaseException:

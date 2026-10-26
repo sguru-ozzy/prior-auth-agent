@@ -4,6 +4,10 @@ The [design document](https://docs.google.com/document/d/1S0ZwLwwnvf1CUEN2kFZnqW
 describes the overall approach. The [repository README](../README.md) covers setup and common commands;
 the [testing guide](testing.md) covers additional CLI cases.
 
+## Implementation designs
+
+- [Duplicate protection and recovery](design/duplicate-recovery.md)
+
 ## PR decision records
 
 - [PR 1: Reproducible foundation](decisions/001-repository-foundation.md)

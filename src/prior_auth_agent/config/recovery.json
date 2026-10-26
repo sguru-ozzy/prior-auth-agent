@@ -1,0 +1,53 @@
+{
+  "version": "recovery-v1",
+  "identity_fields": [
+    "patient.member_id",
+    "medication.name"
+  ],
+  "evidence_max_age_seconds": 10,
+  "max_journal_bytes": 1048576,
+  "history": {
+    "navigation": "Requests",
+    "heading": "Requests",
+    "clear_filters": "Clear filters",
+    "filter_labels": [
+      "Search requests",
+      "Filter requests",
+      "Updated from",
+      "Updated to"
+    ],
+    "columns": {
+      "key": "Key",
+      "drug": "Drug",
+      "status": "Status"
+    },
+    "summary_pattern": "^Showing\\s+(?P<first>\\d+)[\u2013-](?P<last>\\d+)\\s+of\\s+(?P<total>\\d+)$",
+    "next_button": "Next",
+    "max_pages": 10,
+    "max_requests": 200,
+    "detail_fields": {
+      "member_id": "Member ID",
+      "date_of_birth": "Date of birth",
+      "drug": "Drug",
+      "package": "Package"
+    },
+    "open_statuses": [
+      "Draft",
+      "Sent to plan",
+      "Questions from plan",
+      "Answers sent",
+      "Under review"
+    ],
+    "closed_statuses": [
+      "Approved",
+      "Denied",
+      "PA not required",
+      "Cancelled",
+      "Expired"
+    ],
+    "submitted_statuses": [
+      "Sent to plan"
+    ],
+    "receipt_pattern": "\\bQMS-[A-Za-z0-9-]+\\b"
+  }
+}
